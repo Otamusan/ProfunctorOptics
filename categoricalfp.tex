@@ -1,0 +1,275 @@
+\documentclass[uplatex,dvipdfmx]{jsarticle}
+\usepackage{listings,jvlisting}
+\usepackage{color}
+\usepackage{xr}
+
+\lstset{
+  backgroundcolor=\color[rgb]{0.9,0.9,0.9},
+  frame=single,
+  basicstyle=\ttfamily
+}
+\makeatletter
+\newcommand*{\addFileDependency}[1]{% argument=file name and extension
+  \typeout{(#1)}
+  \@addtofilelist{#1}
+  \IfFileExists{#1}{}{\typeout{No file #1.}}
+}
+\makeatother
+
+\newcommand*{\myexternaldocument}[1]{%
+    \externaldocument{#1}%
+    \addFileDependency{#1.tex}%
+    \addFileDependency{#1.aux}%
+}
+\myexternaldocument{../categoryTheoryIntro/CategoryTheoryIntro}
+
+\newcommand{\pr}[1]{\colorbox[rgb]{0.9,0.9,0.9}{\lstinline{#1}}}
+\newcommand{\functype}[2]{\pr{#1 -> #2}}
+\newcommand{\refcti}[1]{[CTI]\ref{#1}}
+\newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
+\input{../categoryTheoryIntro/preemble.tex}
+\begin{document}
+  \title{関数型言語におけるデータ構造への圏論の応用}
+  \maketitle
+	\tableofcontents
+  \pagebreak
+  \section{Haskellと抽象構造}
+  オブジェクト指向言語におけるデザインパターンとは、プログラムの一部を再利用、テストを容易にするための設計手法である。これらは継承やら実装やらのオブジェクト指向言語特有の操作によって抽象化されていて、さらにそれらの操作で閉じている。
+
+  関数型プログラミング、特にHaskellではリストの操作や入出力などの副作用を伴う操作を、抽象的で汎用性があり極力関数型言語の操作で構成される設計によって与えている。これらは言うなればデザインパターンによって言語機能の拡張しているとみなすことができ、こういった設計もここではデザインパターンと呼ぶことにする。
+
+  \subsection{関数型}
+  Haskellにも一般のプログラミングと同じようにデータ型が存在し、整数値を持つ\pr{Int}型や\pr{True}と\pr{False}を持つ\pr{Bool}型などがある。
+  また整数値を受け取って二倍にして返す、つまり$double(x)=2x$なる
+  関数\pr{double}は\pr{Int}から\pr{Int}への関数であり、haskellではこのように記述する。
+  \begin{lstlisting}
+    double :: Int -> Int
+    double x = 2*x
+    -- >>> double 4
+    -- 8
+  \end{lstlisting}
+  \lstinline{double}
+  ある型\pr{a}からある型\pr{b}への関数は、関数の型\functype{a}{b}に含まれる。すなわち、関数そのものも値とみなすということである。それによって、関数型から関数型への関数なども定義できるようになる。その一例を示そう。
+
+  関数\fpmor{f}{Int}{Int}を、自身を合成した関数\fpmor{f.f}{Int}{Int}へと写す関数
+  
+  \fpmor{mul}{(Int -> Int)}{(Int -> Int)}は次のように記述する。
+  \begin{lstlisting}
+    mul :: (Int -> Int) -> (Int -> Int)
+    mul f = f.f
+    -- >>> (mul double) (5)
+    -- 20
+  \end{lstlisting}
+  後に説明するが、\pr{.}という記号は前後の関数を合成する操作であり、\pr{f.f}は$f\circ f$を意味する。すなわちこの計算は
+  \[(mul(double))(5)=(double \circ double)(5)=double(double(5))=20\]のように行われる。このような関数を引数、戻り値にするような関数を高階関数と呼ぶ。
+  
+  二つの整数を足し合わせる操作は$add(x,y)=x+y$のように定義できる。この関数は引数を二つ持つ多変数関数であり、これはHaskellでは
+  \begin{lstlisting}
+    add :: Int -> Int -> Int
+    add x y = x + y
+    -- >>> add 5 6
+    -- 11
+  \end{lstlisting}
+  のように型を与えて定義することができる。関数の型\pr{Int -> Int -> Int}は左から二つは引数の型で、一番右が返り値の型となっている。
+  なぜこのような表記をするかというと、\pr{Int -> Int -> Int}は\pr{Int -> (Int -> Int)}の省略であり、$add(x,y)$を$(add(x))(y)$とみなしているためである。ゆえに\fpmor{add(x)}{Int}{Int}は引数に\pr{x}を足し合わせる関数となっている。
+  \subsection{多相型と多相関数}
+  関数型\functype{a}{b}は単一の型ではなく、任意の型\pr{a},\pr{b}に対して個別に定義できるのであった。このように既存の型から生成できる型を多相型という。また、多相型から多相型への型を考えることもできる。例えば高階関数と多変数関数を用いれば、関数を合成する操作に次のような型を与えることができる。
+  \begin{lstlisting}
+    apply :: (Int -> Int) -> Int -> Int
+    apply f x = f(x)
+    -- >>> apply double 10
+    -- 20
+  \end{lstlisting}
+  しかし、引数の関数は\pr{Int}か\pr{Int}への関数に制限されているが、実際は関数がどのような型であっても、適用の操作は行えるはずである。
+  そこで、\pr{apply}関数の引数の型を\pr{a}、返り値の型を\pr{b}に置き換える。
+    \begin{lstlisting}
+    apply :: (a -> b) -> a -> b
+    apply f x = f(x)
+    -- >>> apply double 10
+    -- 20
+    -- >>> apply not False
+    -- True
+  \end{lstlisting}
+  例のために真理値を反転する関数\fpmor{not}{Bool}{Bool}を使用している。
+  
+  このように関数の引数の型を任意の型\pr{a},\pr{b}に置き換えることで、様々な型の値に対応した関数を定義することができ、このような関数を多相関数と呼ぶ。
+
+  このような多相関数は基本的に既存の多相関数の組み合わせによって定義される。この例であれば、\pr{apply}の定義に用いた\pr{f(x)}はすでにhaskell側によって多相関数\pr{(\$) :: (a -> b) -> a -> b}としてすでに定義されているため、定義することができた。
+
+  値の適用が関数として与えられているように、関数の合成も関数で行うことができる。つまり関数\pr{double}の定義に用いた\pr{.}が関数であり、
+  \begin{center}
+    \pr{(.)\ ::\ (b -> c) -> (a -> b) -> a -> c}
+  \end{center}
+  という型が与えられているということである。
+
+  このように関数型プログラミングでの処理の記述は変数の仲介を除けば、関数に関数を合成する操作や、関数に値を適用する操作によって行われる。
+  \subsection{基本的なデータ型}
+  任意の型\pr{a},\pr{b}に対して多相型である直積型\pr{(a,b)}は以下の関数で構成される。
+  \begin{lstlisting}
+    (,) :: a -> b -> (a, b)
+    fst :: (a, b) -> a
+    snd :: (a, b) -> b
+
+    -- >>> (,) 4 5
+    -- (4,5)
+    -- >>> fst (4,5)
+    -- 4
+    -- >>> snd (4,5)
+    -- 5
+  \end{lstlisting}
+  実行例を見て分かるように、\pr{(a,b)}の値はある型\pr{a}と\pr{b}の値をそれぞれ持つ。
+  また、型\pr{a},\pr{b}の値\pr{x},\pr{y}に対して、\[\pr{fst (x, y)}=\pr{x},\ \pr{snd (x, y)}=\pr{y}\]が成り立つ。
+
+  直積型は二つの型の値を持つが、ゼロ個の型の値を持つ型も存在する。この型をUnit型\pr{()}といい、ただ一つの値\pr{()}を持つ。
+
+  任意の型\pr{a},\pr{b}に対して多相型である直和型\pr{Either a b}は以下の関数で構成される。
+  \begin{lstlisting}
+    Right :: b -> Either a b
+    Left :: a -> Either a b
+    either :: (a -> c) -> (b -> c) -> Either a b -> c
+
+    isZero :: Int -> Bool
+    isZero x = x==0
+
+    -- >>> either isZero not (Left 0)
+    -- True
+    -- >>> either isZero not (Right True)
+    -- False
+  \end{lstlisting}
+  \pr{isZero}関数の\pr{x==0}は両辺が等しいか真理値を返す関数\pr{(==)\ ::\ Int\ ->\ Int\ ->\ Bool}であり、定義から分かるように\pr{Either a b}は\pr{a}か\pr{b}の値のどちらか一方を持つ。
+
+  \pr{either}関数についてこの例では、\functype{Int}{Bool}と\functype{Bool}{Bool}を受け取っているため、次の引数の型は\pr{Either\ Int\ Bool}を受け取る。もし\pr{Either\ Int\ Bool}の値が\pr{Int}であれば、\functype{Int}{Bool}型の\pr{isZero}関数に適用し、\pr{Bool}であれば\functype{Bool}{Bool}型の\pr{not}関数に適用する、という関数である。
+
+  また任意の型\pr{x}とその値\pr{y}、
+  \begin{lstlisting}
+    f :: a -> x
+    g :: b -> x
+  \end{lstlisting}に対して、
+  \begin{align*}
+    \pr{either f g (Left x)}&=\pr{f x}\\
+    \pr{either f g (Right x)}&=\pr{g x}
+  \end{align*}
+  が成り立つ。
+
+  一般に直和を用いて新しい型を定義する場合、\pr{Either}型を用いて定義するのではなく、haskellにおける多相型を定義する構文によって行われることが多い。また\pr{either}関数もパターンマッチと呼ばれる構文によって行われる。
+
+  \begin{lstlisting}
+    data EitherIB = Value Int | Judge Bool
+    calc :: EitherIB -> Bool
+    calc (Value a) = isZero a
+    calc (Judge a) = not a
+    -- >>> :t Value
+    -- Value :: Int -> EitherIB
+    -- >>> :t Judge
+    -- Judge :: Bool -> EitherIB
+  \end{lstlisting}
+  この例では、\pr{EitherIB}が\pr{Either Int Bool}に該当し、\pr{Value}が\pr{Left}、\pr{Judge}が\pr{Right}に対応する。
+  \subsection{デザインパターンの例}
+  最後にこれらを応用したMaybe型を見る。
+  \begin{lstlisting}
+    data Maybe a  =  Nothing | Just a
+  \end{lstlisting}
+  \pr{Maybe a}は\pr{Either}型を用いると、\pr{Either () a}と書ける。ここでの\pr{Nothing}は\pr{Unit}型の値を与える関数とみなせるが、値はただ一つであるため単に定数と見て良い。すなわち\pr{Maybe a}はただ一つの値\pr{Nothing}と任意の型\pr{a}の値のどちらかの値を持つ型である。
+
+  この\pr{Maybe}の想定している用途として、以下の例を扱う。
+  \begin{lstlisting}
+    div10 :: Float -> Float
+    div10 = (10 /)
+    -- >>> div10 4
+    -- 2.5
+    -- >>> div10 0
+    -- Infinity
+  \end{lstlisting}
+  \pr{div10}は10を与えられた数で割る関数であるが、結果のように零除算についてはInfinityという値が与えられる。これを素直に計算の失敗と見なし、型によって計算結果が正しく出力されないことを示したい。そこで、
+  \begin{lstlisting}
+    div10' :: Float -> Maybe Float
+    div10' x = if x == 0 then Nothing else Just $ div10 x
+
+    -- >>> div10' 4
+    -- Just 2.5
+    -- >>> div10' 0
+    -- Nothing
+  \end{lstlisting}
+  という関数を定義する。これは零除算が発生する場合\pr{Nothing}を返し、そうでない場合は\pr{Just}によって計算結果を\pr{Maybe}に包んで返している。
+
+  これによって、\pr{Maybe Float}の値を用いて計算を行うときは、必ず\pr{Nothing}と\pr{Just}の場合分けが必要になり、他の言語でいうNullチェックが必要なことを型レベルで示していることになる。
+
+  またここではこれ以上語らないが、\pr{Maybe}型の挙動はモナドと呼ばれるデザインパターンによって一般化される。これによって特に\pr{a -> Maybe b}型の関数と\pr{b -> Maybe c}型の関数の自然な合成を与えることができる。
+  \section{圏論}
+  関数型言語では関数という言葉が使われるように、型を属する値の集合、関数を値の集合から値の集合への写像とみなすことができる。集合を写像の視点から観察する場合、圏論によって一般化することが有効である場合が多い。そのため以降は型と関数の議論を圏論によってモデル化することを考える。
+  \subsection{型と関数の圏}
+  型を対象、関数を射とする圏$\cat{H}$を定義する。
+  圏の定義は\refcti{def-category}を参照
+  Haskellには二つの関数が等しいことを判定する一般的な操作は無い。そのため関数の等号を改めて定義する。
+  \begin{define}[関数の外延性]\label{def-function-extensionality}
+    関数\fpmor{f}{a}{b}、\fpmor{g}{a}{b}と型\pr{a}の任意の値\pr{x}において\[\pr{f x}=\pr{g x} \iff \pr{f} = \pr{g}\]
+  \end{define}
+  \begin{define}[型と関数の圏]\label{def-hask-category}
+		\begin{quote}~
+			\begin{mydescription}
+        \item[対象] すべての型の集合を対象集合$\obj{H}$とする。また各型を対象とみなす場合$A,B,C\cdots$と表記し、型とみなす場合は\pr{a},\pr{b},\pr{c}$\cdots$とする。また各型の値を圏論の文脈では$a,b,c\cdots$と表記することにする。
+        \item[射] 対象$A$から対象$B$への射集合$\arset{H}{A}{B}$を集合と見なした関数型\functype{a}{b}とする。また各射は$f,g,h\cdots$と表記する。
+        \item[射の合成] 射の合成を行う写像$\mor{\circ}{\arset{H}{B}{C}\times\arset{H}{A}{B}}{\arset{H}{A}{C}}$を任意の射$\mor{f}{A}{B},\ \mor{g}{B}{C}$に対して\pr{f.g}によって定義する。
+        \item[恒等射の存在] 任意の型\pr{a}に対して恒等関数\fpmor{id}{a}{a}は、\pr{id x = x}と定義できる。この恒等関数を恒等射とし、$\mor{id_A}{A}{A}$と表記する。
+        \item[結合律] 関数の外延性より、集合の圏における結合律と同様の手法で証明できる。\refcti{def-category-of-sets}を参照
+        \item[単位元律]結合律と同様に\refcti{def-category-of-sets}を参照
+		  \end{mydescription}
+		\end{quote}
+	\end{define}
+  次に型の直積と直和の普遍性との関係を見る。
+  \begin{prop}
+    圏$\cat{H}$は積を持つ
+  \end{prop}
+  \begin{proof}[$\cat{H}$の積]\label{prop-h-has-product}
+    $(\pr{(a,\ b)},\pr{fst},\pr{snd})$は型\pr{a},\pr{b}における積であることを示せば良い。
+    任意の型\pr{x}、任意の関数
+    \begin{lstlisting}
+      f :: x -> a
+      g :: x -> b
+    \end{lstlisting}に対して、
+    \begin{lstlisting}
+      h :: x -> (a, b)
+      h x = (f x, g x)
+    \end{lstlisting}とする。
+    すると明らかに
+    \begin{align*}
+      \pr{fst . h \$ x}&=\pr{f x}\\
+      \pr{snd . h \$ x}&=\pr{g x}
+    \end{align*}
+
+    であり、ある関数\pr{i\ ::\ x\ ->\ (a,\ b)}によって与えられた値\pr{i\ x\ ::\ (a,\ b)}が
+    \begin{align*}
+      \pr{fst (i x)} &= \pr{f x}\\
+      \pr{snd (i x)} &= \pr{g x}
+    \end{align*}
+    を満たす時、\pr{fst},\pr{snd}の性質から\pr{i\ x\ =\ (f\ x,\ g\ x)}が成り立つ。よって\ref{def-function-extensionality}の関数の外延性より\pr{i} = \pr{h}である。これにより射の対\pr{h}の一意に存在することを示せた。 よって$(\pr{(a,\ b)},\pr{fst},\pr{snd})$は積であり、任意の型\pr{a},\pr{b}に対して存在するから$\cat{H}$は積を持つ。
+  \end{proof}
+  \begin{prop}[$\cat{H}$の終対象]\label{prop-h-has-terminal}
+    圏$\cat{H}$は終対象を持つ。
+  \end{prop}
+  \begin{proof}
+    ある型\pr{x}において
+    \begin{lstlisting}
+      f :: x -> ()
+      f x = ()
+    \end{lstlisting}
+    なる写像を考える。またこのような関数は任意の\pr{x}について考えることができる。
+    \begin{lstlisting}
+      g :: x -> ()
+      g x = ()
+    \end{lstlisting}
+    なる写像を考えると、\pr{f x}=\pr{()}=\pr{g x}が成り立ち、\ref{def-function-extensionality}の関数の外延性より\pr{f}=\pr{g}が成り立つ。\pr{f :: x -> ()}なる関数が一意に存在するから\pr{()}は$\cat{H}$における終対象であり、$\cat{H}$は終対象を持つ。
+  \end{proof}
+  \begin{define}[余積の定義]
+    ある対象$A,B$に対して$(A+B,\ \iota_A,\ \iota_B)$が余積であるとは、
+    $\mor{\iota_A}{A}{A+B},\ \mor{\iota_B}{B}{A+B}$であり、任意の対象$X$と任意の射$\mor{f}{A}{X},\ \mor{g}{B}{X}$に対して
+    \[[f,g]\circ\iota_A = f,\ [f,g]\circ\iota_B = g\]であるような$\mor{[f,g]}{A+B}{X}$が一意に存在するときである。
+  \end{define}
+  \begin{prop}[$\cat{H}$の余積]\label{prop-h-has-coproduct}
+  \end{prop}
+  \begin{proof}
+    $(Either a b,\ Left,\ Right)$が終対象
+  \end{proof}
+  \subsection{関手と自然変換}
+  \subsection{関数型とべき随伴}
+\end{document}
