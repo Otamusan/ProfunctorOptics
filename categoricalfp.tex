@@ -29,11 +29,12 @@
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
-  \title{関数型言語におけるデータ構造への圏論の応用}
+  \title{関数型言語におけるデザインパターンへの圏論による応用}
+  \author{https://github.com/Otamusan/FPandCategory}
   \maketitle
 	\tableofcontents
   \pagebreak
-  \section{Haskellと抽象構造}
+  \section{Haskellとデザインパターン}
   オブジェクト指向言語におけるデザインパターンとは、プログラムの一部を再利用、テストを容易にするための設計手法である。これらは継承やら実装やらのオブジェクト指向言語特有の操作によって抽象化されていて、さらにそれらの操作で閉じている。
 
   関数型プログラミング、特にHaskellではリストの操作や入出力などの副作用を伴う操作を、抽象的で汎用性があり極力関数型言語の操作で構成される設計によって与えている。これらは言うなればデザインパターンによって言語機能の拡張しているとみなすことができ、こういった設計もここではデザインパターンと呼ぶことにする。
@@ -169,7 +170,7 @@
   \begin{lstlisting}
     data Maybe a  =  Nothing | Just a
   \end{lstlisting}
-  \pr{Maybe a}は\pr{Either}型を用いると、\pr{Either () a}と書ける。ここでの\pr{Nothing}は\pr{Unit}型の値を与える関数とみなせるが、値はただ一つであるため単に定数と見て良い。すなわち\pr{Maybe a}はただ一つの値\pr{Nothing}と任意の型\pr{a}の値のどちらかの値を持つ型である。
+  \pr{Maybe a}は\pr{Either}型を用いると、\pr{Either () a}と書ける。ここでの\pr{Nothing}は\pr{Unit}型の値を与える関数とみなせるが、値はただ一つであるため単に定数と見て良い。すなわち\pr{Maybe a}はただ一つの値\pr{Nothing}と型\pr{a}の値のどちらかの値を持つ型である。
 
   この\pr{Maybe}の想定している用途として、以下の例を扱う。
   \begin{lstlisting}
@@ -236,8 +237,13 @@
       \pr{fst . h \$ x}&=\pr{f x}\\
       \pr{snd . h \$ x}&=\pr{g x}
     \end{align*}
-
-    であり、ある関数\pr{i\ ::\ x\ ->\ (a,\ b)}によって与えられた値\pr{i\ x\ ::\ (a,\ b)}が
+    であり、\ref{def-function-extensionality}の関数の外延性より
+    \begin{align*}
+      \pr{fst . h}&=\pr{f}\\
+      \pr{snd . h}&=\pr{g}
+    \end{align*}
+    が成り立ち、\pr{h}は\pr{f}、\pr{g}の射の対であることが分かる。
+    またある関数\pr{i\ ::\ x\ ->\ (a,\ b)}によって与えられた値\pr{i\ x\ ::\ (a,\ b)}が
     \begin{align*}
       \pr{fst (i x)} &= \pr{f x}\\
       \pr{snd (i x)} &= \pr{g x}
@@ -266,10 +272,45 @@
     \[[f,g]\circ\iota_A = f,\ [f,g]\circ\iota_B = g\]であるような$\mor{[f,g]}{A+B}{X}$が一意に存在するときである。
   \end{define}
   \begin{prop}[$\cat{H}$の余積]\label{prop-h-has-coproduct}
+    圏$\cat{H}$は余積を持つ、すなわち任意の対象$A,B$に対して余積$A+B$が存在する。
   \end{prop}
   \begin{proof}
-    $(Either a b,\ Left,\ Right)$が終対象
+    厳密に証明するのであれば自然同型\[\arset{H}{A+B}{-}\cong\arset{H}{A}{-}\times \arset{H}{B}{-}\]を示すべきであるが、ここでは少し妥協して\pr{Either a b}の値が\pr{Left},\pr{Right}のみによって与えられるとする。
+
+
+    積と同様に(\pr{Either a b},\ \pr{Left},\ \pr{Right})が型\pr{a}、\pr{b}における余積であることを示せば良い。任意の型\pr{x}、任意の関数
+    \begin{lstlisting}
+      f :: a -> x
+      g :: b -> x
+    \end{lstlisting}
+    に対して、
+    \begin{align*}
+      \pr{(either f g) Left x} &= \pr{f x}\\
+      \pr{(either f g) Right x} &= \pr{g x}
+    \end{align*}
+    が成り立つのであった。よって、
+    \begin{align*}
+      \pr{(either f g).Left} &= \pr{f}\\
+      \pr{(either f g).Right} &= \pr{g}
+    \end{align*}
+    であり、
+    \begin{align*}
+      \pr{h.Left} &= \pr{f}\\
+      \pr{h.Right} &= \pr{g}
+    \end{align*}
+    を満たすような\pr{h :: Either a b -> x}が存在するとする。
+    すると、\pr{a}の任意の値\pr{x}と\pr{b}の任意の値\pr{y}に対して、
+    \begin{align*}
+      \pr{(either f g).Left x} &= \pr{h.Left x}\\
+      \pr{(either f g).Right y} &= \pr{h.Right y}
+    \end{align*}
+    が成り立つ。\pr{Either a b}の値が\pr{Left},\pr{Right}のみによって与えられるから、\ref{def-function-extensionality}の関数の外延性より\pr{either f g} = \pr{h}であり、条件を満たす\pr{either f g}が一意に定まることが分かった。
+
+    よって(\pr{Either a b},\ \pr{Left},\ \pr{Right})は\pr{a}、\pr{b}に対する余積であり、これが任意の型に対して存在するから$\cat{H}$は余積を持つ
   \end{proof}
   \subsection{関手と自然変換}
   \subsection{関数型とべき随伴}
+  \section{モナドとコモナド}
+  \section{始代数と終余代数}
+  \section{Optics}
 \end{document}
