@@ -29,8 +29,8 @@
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
-  \title{関数型言語におけるデザインパターンへの圏論による応用}
-  \author{https://github.com/Otamusan/FPandCategory}
+  \title{関数型言語と圏論の関係性}
+  \author{https://otamusan.github.io/FPandCategory/categoricalfp.pdf}
   \maketitle
 	\tableofcontents
   \pagebreak
@@ -49,7 +49,6 @@
     -- >>> double 4
     -- 8
   \end{lstlisting}
-  \lstinline{double}
   ある型\pr{a}からある型\pr{b}への関数は、関数の型\functype{a}{b}に含まれる。すなわち、関数そのものも値とみなすということである。それによって、関数型から関数型への関数なども定義できるようになる。その一例を示そう。
 
   関数\fpmor{f}{Int}{Int}を、自身を合成した関数\fpmor{f.f}{Int}{Int}へと写す関数
@@ -72,7 +71,7 @@
     -- 11
   \end{lstlisting}
   のように型を与えて定義することができる。関数の型\pr{Int -> Int -> Int}は左から二つは引数の型で、一番右が返り値の型となっている。
-  なぜこのような表記をするかというと、\pr{Int -> Int -> Int}は\pr{Int -> (Int -> Int)}の省略であり、$add(x,y)$を$(add(x))(y)$とみなしているためである。ゆえに\fpmor{add(x)}{Int}{Int}は引数に\pr{x}を足し合わせる関数となっている。
+  なぜこのような表記をするかというと、\pr{Int -> Int -> Int}は\pr{Int -> (Int -> Int)}の省略であり、$add(x,y)$を$(add(x))(y)$とみなしているためである。ゆえに\fpmor{add(x)}{Int}{Int}は引数に\pr{x}を足し合わせる関数となっている。またこのように想定された数より少ない引数を適用することを部分適用と呼ぶ。
   \subsection{多相型と多相関数}
   関数型\functype{a}{b}は単一の型ではなく、任意の型\pr{a},\pr{b}に対して個別に定義できるのであった。このように既存の型から生成できる型を多相型という。また、多相型から多相型への型を考えることもできる。例えば高階関数と多変数関数を用いれば、関数を合成する操作に次のような型を与えることができる。
   \begin{lstlisting}
@@ -200,7 +199,7 @@
   関数型言語では関数という言葉が使われるように、型を属する値の集合、関数を値の集合から値の集合への写像とみなすことができる。集合を写像の視点から観察する場合、圏論によって一般化することが有効である場合が多い。そのため以降は型と関数の議論を圏論によってモデル化することを考える。
   \subsection{型と関数の圏}
   型を対象、関数を射とする圏$\cat{H}$を定義する。
-  圏の定義は\refcti{def-category}を参照
+  圏の定義の詳細は\refcti{def-category}を参照
   Haskellには二つの関数が等しいことを判定する一般的な操作は無い。そのため関数の等号を改めて定義する。
   \begin{define}[関数の外延性]\label{def-function-extensionality}
     関数\fpmor{f}{a}{b}、\fpmor{g}{a}{b}と型\pr{a}の任意の値\pr{x}において\[\pr{f x}=\pr{g x} \iff \pr{f} = \pr{g}\]
@@ -218,10 +217,10 @@
 		\end{quote}
 	\end{define}
   次に型の直積と直和の普遍性との関係を見る。
-  \begin{prop}
+  \begin{prop}[$\cat{H}$の積]\label{prop-h-has-product}
     圏$\cat{H}$は積を持つ
   \end{prop}
-  \begin{proof}[$\cat{H}$の積]\label{prop-h-has-product}
+  \begin{proof}
     $(\pr{(a,\ b)},\pr{fst},\pr{snd})$は型\pr{a},\pr{b}における積であることを示せば良い。
     任意の型\pr{x}、任意の関数
     \begin{lstlisting}
@@ -266,7 +265,7 @@
     \end{lstlisting}
     なる写像を考えると、\pr{f x}=\pr{()}=\pr{g x}が成り立ち、\ref{def-function-extensionality}の関数の外延性より\pr{f}=\pr{g}が成り立つ。\pr{f :: x -> ()}なる関数が一意に存在するから\pr{()}は$\cat{H}$における終対象であり、$\cat{H}$は終対象を持つ。
   \end{proof}
-  \begin{define}[余積の定義]
+  \begin{define}[余積の定義]\label{def-coproduct}
     ある対象$A,B$に対して$(A+B,\ \iota_A,\ \iota_B)$が余積であるとは、
     $\mor{\iota_A}{A}{A+B},\ \mor{\iota_B}{B}{A+B}$であり、任意の対象$X$と任意の射$\mor{f}{A}{X},\ \mor{g}{B}{X}$に対して
     \[[f,g]\circ\iota_A = f,\ [f,g]\circ\iota_B = g\]であるような$\mor{[f,g]}{A+B}{X}$が一意に存在するときである。
@@ -309,8 +308,237 @@
     よって(\pr{Either a b},\ \pr{Left},\ \pr{Right})は\pr{a}、\pr{b}に対する余積であり、これが任意の型に対して存在するから$\cat{H}$は余積を持つ
   \end{proof}
   \subsection{関手と自然変換}
+  Haskellには他のオブジェクト指向言語におけるインターフェイスのような概念がある。これを型クラスといい、それを実装したものはインスタンスと呼ぶ。例えばある型\pr{a}がシリアル化可能、つまり型\pr{a}の値と文字列の相互変換が可能であるには\pr{a -> String}と\pr{String -> a}なるような二つの関数を持っていなければならない。ただし文字列を値とする型を\pr{String}とする。そこでその条件を型クラス\pr{Serializable}として記述する。
+  \begin{lstlisting}
+  class Serializable a where
+    serialize :: a -> String
+    deserialize :: String -> a
+  \end{lstlisting}
+  真理値は単に\pr{True}\pr{False}を文字列と見なしたり、真理値と見なしたりできシリアル化可能であると述べることができる。そこで以下に示すように型\pr{Bool}を型クラス\pr{Serializable}のインスタンスにする。
+  \begin{lstlisting}
+  instance Serializable Bool where
+    serialize :: Bool -> String
+    serialize x = if x then "True" else "False"
+    deserialize :: String -> Bool
+    deserialize x = x == "True"
+  \end{lstlisting}
+  ここで注意すべきことは本来シリアル化であればStringから値が完全に復元できるように
+  \[\pr{serialize.deserialize x} = \pr{x} ,\ \pr{deserialize.serialize x} = \pr{x}\]が成り立つように\pr{serialize}と\pr{deserialize}を定義するべきであるが、一般的に等式によってそのような制約を設けることはできない。そのため型クラスにそのような等式が存在する場合は、手動でそれを満たすかどうか調べなければならない。
+
+  また多相型は既存の型を新しい型に写す写像の印象が強く、一般の型とは大きく異なるような概念に見える。しかし関数の全体を型とみなすのと同様に、多相型もまた型の一種である。よって単に多相型によって写された型\pr{f a}だけでなく、多相型\pr{f}もインスタンス化が可能である。その例として\pr{Functor}型を示そう。
+  \begin{lstlisting}
+    class Functor f where
+      fmap :: (a -> b) -> f a -> f b
+  \end{lstlisting}
+  \pr{fmap}の型に\pr{f a}が含まれるため、\pr{f}は多相型であることが要請されることが分かる。また、関数\pr{fmap}はファンクタ則と呼ばれる以下の等式を満たさなければならない。
+  \begin{align*}
+    &\pr{fmap id} = \pr{id}\\
+    &\pr{fmap (f . g)} = \pr{fmap f . fmap g}
+  \end{align*}
+  この\pr{Functor}という型クラスは、多相型が既存の型を新しい型へ写すような操作と見なした場合、型だけでなくその周りの関数も同様に写すことができることを要請する。
+
+  またファンクタ則については、新しい関数に写した場合、ある程度元の関数を引き継ぐよう要請するものである。
+
+  多相型と一般の型の関係が分かりにくいため、型の型であるカインドを紹介する。型を更に上位の型であるカインドによって分類するわけだが、一般の型に比べて複雑ではない。例えば多相型でない具体的な型\pr{Int}、\pr{Bool}のカインドは\pr{*}である。多相型\pr{Maybe}は\pr{* -> *}であり、\pr{*}の具体的な型を\pr{*}の具体的な型に写す関数と見なしている。
+
+  \pr{(a,b)}や\pr{a -> b}は二つの任意の型から一つの型を与えていたが、これも多変数関数と同様に\pr{(,) :: * -> * -> *}というようなカインドが与えられている。
+
+  \begin{lstlisting}
+    -- >>> :k Int
+    -- Int :: *
+    -- >>> :k Bool
+    -- Bool :: *
+    -- >>> :k Maybe
+    -- Maybe :: * -> *
+    -- >>> :k (,)
+    -- (,) :: * -> * -> *
+    -- >>> :k (->)
+    -- (->) :: * -> * -> *
+  \end{lstlisting}
+
+  さてFunctorの話に戻ると、この名前の通りこれは圏$\cat{H}$における自己関手にあたる。関手の定義は\refcti{def-functor}を参照。
+  \begin{prop}\label{prop-functor-is-self-functor}
+    多相型\pr{f}が\pr{Functor}のインスタンスである時、\pr{f}は$\cat{H}$における自己関手である。
+    \begin{quote}
+			\begin{mydescription}
+		\item[対象関数] \pr{a}を\pr{f a}に写す操作を対象関数とする。
+		\item[射関数] \pr{fmap :: (a -> b) -> f a -> f b}を射関数とする。\\
+    \pr{fmap :: (a -> b) -> (f a -> f b)}とみなすことができるため、\ref{def-hask-category}の圏$\cat{H}$の射集合の定義より、$\arset{H}{A}{B}=\pr{a -> b}$であったから、\pr{fmap}は射関数とすることができる。
+		\item[恒等射の保存] 正しくファンクタ則の\pr{fmap id} = \pr{id}が恒等射の保存である。
+		\item[射の合成の保存] 正しくファンクタ則の\pr{fmap (f . g)} = \pr{fmap f . fmap g}が射の合成の保存である。
+		\end{mydescription}
+		\end{quote}
+  \end{prop}
+  これから\pr{Functor}のインスタンスを紹介していくが、ファンクタ則を満たすかどうかはここでは証明しない。興味があれば\refcti{chap-6-functor}章を読んでほしい。
+
+  対象$B$を対象$A\times B$に写す操作は関手$\functor{A \times -}{H}{H}$であったから、同様に\pr{(,) a :: * -> *}となる多相型も\pr{Functor}のインスタンス化ができる。この\pr{(,) a}という型は、多相型\pr{(,)}を多変数関数と見なしたときに、型\pr{a}を部分適用して得られた多相型である。
+  \begin{lstlisting}
+    instance Functor ((,) a) where
+      fmap f (x,y) = (x, f y)
+  \end{lstlisting}
+  \pr{Functor}の求める型のカインドは\pr{* -> *}であるが、これを\pr{* -> * -> *}に拡張した\pr{Bifunctor}が存在する。
+  \begin{lstlisting}
+    class Bifunctor p where
+      bimap :: (a -> b) -> (c -> d) -> p a c -> p b d
+      bimap f g = first f . second g
+
+      first :: (a -> b) -> p a c -> p b c
+      first f = bimap f id
+      second :: (b -> c) -> p a b -> p a c
+      second = bimap id
+  \end{lstlisting}
+  \pr{Bifunctor}型クラスでは必要とされる関数にすでに実装がされていて、\pr{first}、\pr{second}は\pr{bimap}を参照、\pr{bimap}は\pr{first}、\pr{second}を参照している。
+  これはどちらか一方を実装すれば、もう片方も自動的に定義されるということである。詳細は述べないが、\pr{second}が\pr{Functor}型クラスの実装である\pr{fmap}に該当し、\pr{first}が\pr{Functor}で実装しきれなかった方の関手性である。これは正しく圏論における双関手であり、詳しくは\refcti{def-bifunctor}を参照してほしい。
+  
+  直積型である\pr{(a, b)}と直和型である\pr{Either a b}も\pr{Bifunctor}のインスタンスであり、
+  \begin{lstlisting}
+    instance Bifunctor (,) where
+      bimap f g ~(a, b) = (f a, g b)
+    instance Bifunctor Either where
+      bimap f _ (Left a) = Left (f a)
+      bimap _ g (Right b) = Right (g b)
+  \end{lstlisting}
+  のように実装されている。直感的には\pr{(a, b)}型と\pr{Either a b}型の\pr{a}と\pr{b}の値にそれぞれ関数を適用しているという点で、一種の値の並列計算のように思える。
+
+  また、直積と直和が関手的であることから、それらで構成される\pr{Maybe}型も\pr{Functor}の実装を自然に与えることができる。実際デフォルトの実装は
+  \begin{lstlisting}
+    instance Functor Maybe where
+      fmap _ Nothing       = Nothing
+      fmap f (Just a)      = Just (f a)
+  \end{lstlisting}
+  であるが、\pr{Either}型によって定義された\pr{Maybe}型の場合は
+  \begin{lstlisting}
+    instance Functor (Either () a) where
+      fmap f = bimap id f
+  \end{lstlisting}
+  のように\pr{Either}型の双関手性を用いて定義できる。\pr{Maybe}型による\pr{fmap}の用途としては、値\pr{m :: Maybe a}に対して関数\pr{f :: a -> b}を適用できるという点にあるだろう。
+  
+  すなわち\pr{(fmap f) m :: Maybe b}である。\pr{fmap}の定義にある通り、\pr{m}が\pr{Nothing}である時何も行わず、\pr{Just n}であった時\pr{f}に\pr{n}を適用するという操作を行うが、\pr{fmap}によって面倒な場合分けを自動で行われる点が便利である。
+  
+  さらに最初に多相型の例として挙げた関数型もまた\pr{Functor}型のインスタンスである。内容としては\refcti{def-covariant-hom-functor}と同じであるが、
+  \begin{lstlisting}
+    instance Functor ((->) r) where
+      fmap = (.)
+  \end{lstlisting}
+  と簡潔に定義される
+
+  \pr{fmap}の型は\pr{(a -> b) -> f a -> f b}であったから、
+  この場合は\pr{(a -> b) -> (r -> a) -> (r -> b)}となる。よって型は合致している。これを関手の観点から見ると、ある関数\pr{f :: a -> b}を用いて部分適用を行うと\pr{(.) f :: (r -> a) -> (r -> b)}が得られるが、これは与えられた関数に\pr{f}を合成する関数である。
+
+  \pr{(->)}も\pr{(,)}と同様に\pr{* -> * -> *}なるカインドを持つから、\pr{Bifunctor}のインスタンスと考えるかもしれないがそうはならない。特に\pr{first :: (a -> b) -> p a c -> p b c}に該当する関数が存在しないためである。これに\pr{(->)}を当てはめると、\pr{second :: (a -> b) -> (a -> c) -> (b -> c)}となるが、\pr{a -> b}と\pr{a -> c}の関数に対する一般的な合成は特に定義されていない。しかし\pr{Bifunctor}の代わりに\pr{(->)}は\pr{Profunctor}と呼ばれる型クラスのインスタンスである。
+
+  次に自然変換について説明する。Haskellにおいて自然変換は単なる多相関数によって表される。すなわち、\pr{Functor}型クラスのインスタンスである多相型二つの間の多相関数であり、自然性と呼ばれる等式を満たすならば自然変換である。
+
+  この自然性というのは、\pr{Functor}である\pr{f},\pr{g}とその間の多相関数\pr{n :: f x -> g x}と関数\pr{g :: a -> b}に対して、
+  \[\pr{fmap g.n}=\pr{n.fmap g}\]が成り立つことである。
+  自然変換についても詳細は\refcti{def-natural-transfomation}を参照
+
+  またHaskellでは型\pr{a}を同じ型\pr{a}に写すような多相型は構成できないが、これが存在すると見なし\pr{fmap}関数に恒等関数を割り当てることで\pr{Functor}型クラスのインスタンスとみなす。
+
+  また、\refcti{def-evaluation-arrow}、\refcti{def-coevaluation-arrow}の評価射、余評価射の定義に従って、関数\pr{ev}、\pr{ce}を定義する
+  \begin{lstlisting}
+    ev :: (b -> a, b) -> a
+    ev p = fst p $ snd p
+    ce :: a -> (b -> (a, b))
+    ce = (,)
+  \end{lstlisting}
+  これも\refcti{naturality-of-eval}、\refcti{prop-naturality-of-coeval}より、型\pr{a}に対して自然になる。
   \subsection{関数型とべき随伴}
+  \begin{define}[随伴関手]\label{def-adjoint-functor}
+      ある二つの関手$\functor{L}{C}{D}$、$\functor{R}{D}{C}$が随伴関手であるとは、以下の性質を満たす時である。
+      \begin{quote}
+        \begin{mydescription}
+          \item[単位と余単位]ある自然変換$\nat{\eta}{Id_\cat{C}}{R\circ L}$と$\nat{\epsilon}{L\circ R}{Id_\cat{D}}$が存在する。また$\eta$を単位、$\epsilon$を余単位と呼ぶことにする。
+          \item[三角恒等式]
+          自然変換の二等式
+          \[(\epsilon\circ L)\cdot(L\circ \eta)=ID_L\]
+          \begin{center}
+            \begin{tikzpicture}[auto]
+              \node (L1) at (0, 0) {$L$};
+              \node (L2) at (2, -2) {$L$};
+              \node (LRL) at (2, 0) {$LRL$};
+              \draw[double,double equal sign distance,-implies] (L1) -- node[swap] {$ID_L$} (L2);
+              \draw[double,double equal sign distance,-implies] (L1) -- node {$L\circ \eta$} (LRL);
+              \draw[double,double equal sign distance,-implies] (LRL) -- node {$\epsilon\circ L$} (L2);
+            \end{tikzpicture}
+          \end{center}
+          \[(R\circ \epsilon)\cdot (\eta\circ R)=ID_R\]
+          \begin{center}
+            \begin{tikzpicture}[auto]
+              \node (L1) at (0, 0) {$R$};
+              \node (L2) at (2, -2) {$R$};
+              \node (LRL) at (2, 0) {$RLR$};
+    
+              \draw[double,double equal sign distance,-implies] (L1) -- node[swap] {$ID_R$} (L2);
+              \draw[double,double equal sign distance,-implies] (L1) -- node {$\eta\circ R$} (LRL);
+              \draw[double,double equal sign distance,-implies] (LRL) -- node {$L\circ \epsilon$} (L2);
+            \end{tikzpicture}
+          \end{center}
+          が成り立つ。
+        \end{mydescription}
+      \end{quote}
+      また$\functor{L}{C}{D}$が左随伴関手、$\functor{R}{D}{C}$が対応する右随伴関手である時、$L\dashv R$と表記する
+  \end{define}
+  \begin{prop}[べき随伴]\label{prop-h-has-exp-adjoint}
+    \pr{(, b)}\ $\dashv $\ \pr{(->) b}である。
+
+    ただし、\pr{(, b)}は\pr{Functor}型クラスのインスタンスではないが\pr{Bifunctor}型クラスの\pr{first}関数を\pr{fmap}関数とすることで\pr{Functor}のインスタンスとみなす。
+  \end{prop}
+  \begin{proof}
+    単位を多相関数\pr{ce}、余単位を\pr{ev}とする。これらの多相関数や多相型が関手、自然変換であることは確認したから三角恒等式を満たすことを調べれば良い。
+    １つ目の等式は\[\pr{ev.(first ce)}=\pr{id}\]と表される。しかし添字が省略されてわかりにくいため、各々の関数の型を示しておく。
+    \begin{lstlisting}
+      ce :: a -> (b -> (a, b))
+      fst ce :: (a, b) -> ((b -> (a, b)), b)
+      ev.(first ce) :: (a, b) -> (a, b)
+    \end{lstlisting}
+    これに\pr{(a, b)}型の任意の値\pr{(x, y)}を適用すると、
+    \begin{align*}
+      \pr{(ev.(first ce))(x, y)}&=\pr{ev(first ce (x,y))}\\
+      &=\pr{ev((,) x, y)}\\
+      &=\pr{(,) x y}\\
+      &=\pr{(x, y)}
+    \end{align*}
+    となり、$\pr{ev.(first ce)}=\pr{id}$が成り立つ。
+    同様に２つ目の等式は\[\pr{(fmap ev).ce}=\pr{id}\]である。各関数の型は以下のようになっていて、
+    \begin{lstlisting}
+      ev :: (b -> a, b) -> a
+      fmap ev :: (b -> (b -> a, b)) -> (b -> a)
+      (fmap ev).ce :: (b -> a) -> (b -> a)
+    \end{lstlisting}
+    \pr{(b -> a)}型の任意の値$f$を適用すると、
+    \begin{align*}
+      \pr{((fmap ev).ce)} f &= \pr{(fmap ev)(ce f)}\\
+      &=\pr{(fmap ev)((,) f)}\\
+      &=\pr{ev.((,) f)}\\
+    \end{align*}
+    ここで型\pr{b}の任意の値\pr{y}に対して、\\
+    \begin{align*}
+      \pr{(ev.((,) f)) y} &= \pr{ev(f, y)}\\
+      &= \pr{f(y)}\\
+    \end{align*}
+    であるから、\pr{ev.((,) f)}=\pr{f}である。よって$\pr{(fmap ev).ce}=\pr{id}$となる。
+  \end{proof}
+  \begin{define}[カルテジアン閉圏]\label{def-ccc}
+    圏$\cat{C}$がカルテジアン閉圏(ccc)であるとは、積と終対象を持ち、積関手$\functor{(-\times B)}{C}{C}$に対して右随伴となるような関手$\functor{(-)^{B}}{C}{C}$を持つということである。
+  \end{define}
+  \begin{prop}\label{prop-h-is-ccc}
+    圏$\cat{H}$はcccである。
+  \end{prop}
+  \begin{proof}
+    命題\ref{prop-h-has-product}、\ref{prop-h-has-terminal}、
+    \ref{prop-h-has-exp-adjoint}より、圏$\cat{H}$はcccである。
+  \end{proof}
   \section{モナドとコモナド}
   \section{始代数と終余代数}
   \section{Optics}
 \end{document}
+・TaPL
+・私が書いた圏論入門
+・すごいH本
+・https://hackage.haskell.org/
+・basic concept of enriched category theory
+
+タイトル　圏論側からの方向性　圏論の概念
+現在だとデザイン
+総合報告まとめ
