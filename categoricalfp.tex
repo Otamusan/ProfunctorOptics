@@ -508,7 +508,7 @@
     \end{lstlisting}
     \pr{(b -> a)}型の任意の値$f$を適用すると、
     \begin{align*}
-      \pr{((fmap ev).ce)} f &= \pr{(fmap ev)(ce f)}\\
+      \pr{((fmap ev).ce)f} &= \pr{(fmap ev)(ce f)}\\
       &=\pr{(fmap ev)((,) f)}\\
       &=\pr{ev.((,) f)}\\
     \end{align*}
