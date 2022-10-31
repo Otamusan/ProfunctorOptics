@@ -443,6 +443,34 @@
     ce = (,)
   \end{lstlisting}
   これも\refcti{naturality-of-eval}、\refcti{prop-naturality-of-coeval}より、型\pr{a}に対して自然になる。
+
+  また自然変換は命題\refcti{prop-university-of-nat}のような普遍性を持ち、それは定義\refcti{def-end}のエンドと呼ばれる対象に一般化されるのであった。
+  これをHaskellで記述すると
+  \begin{lstlisting}
+    {-# LANGUAGE RankNTypes #-}
+    data End p = End {prj :: forall a. p a a}
+    -- >>> :t End
+    -- End :: (forall a. p a a) -> End p
+    -- >>> :t prj
+    -- prj :: End p -> p a a
+  \end{lstlisting}
+  このように定義できる。ただし、ファンクタ則や自然性と同じようにエンドの持つ普遍性は記述できない。またこの定義では\pr{p a b}が共変関手、反変関手として振る舞うことを記述できていないが、これは\pr{p a b}が前に述べた\pr{Profunctor}型クラスのインスタンスであるように制約を持たせれば良い。
+  また自然変換の全体はエンドであったから、\pr{p a a}=\pr{f a -> g a}=\pr{(Mor f g) a a}としてエンドによって定義することができる。
+  \begin{lstlisting}
+    type Nat f g = End (Mor f g)
+
+    data Mor f g a b = Mor{mor :: f a -> g b}
+
+    toMaybe :: Either b a -> Maybe a
+    toMaybe = either (const Nothing) Just
+
+    toMaybeNat :: End (Mor (Either b) Maybe)
+    toMaybeNat = End (Mor toMaybe)
+
+    -- >>> :t mor (prj toMaybeNat)
+    -- mor (prj toMaybeNat) :: Either b1 b2 -> Maybe b2
+  \end{lstlisting}
+  この例では多相関数\pr{toMaybe}をエンド\pr{toMaybeNat}に変換している。また\[\pr{mor.prj :: End (Mor f g) -> f b -> g b}\]によって元の多相関数へと復元することもできる。
   \subsection{関数型とべき随伴}
   \begin{define}[随伴関手]\label{def-adjoint-functor}
       ある二つの関手$\functor{L}{C}{D}$、$\functor{R}{D}{C}$が随伴関手であるとは、以下の性質を満たす時である。
@@ -529,9 +557,278 @@
     命題\ref{prop-h-has-product}、\ref{prop-h-has-terminal}、
     \ref{prop-h-has-exp-adjoint}より、圏$\cat{H}$はcccである。
   \end{proof}
-  \section{モナドとコモナド}
-  \section{始代数と終余代数}
+  
   \section{Optics}
+  \subsection{LensとPrism}
+  Opticsの例としてLens、Prismを挙げる。
+
+  Lensはオブジェクト指向におけるフィールドと、それに対するセッター、ゲッターを一般化した概念である。例えばある型$S$が型$A$を内部に保持する時、$A$に関する操作としては二つの関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$が考えられる。
+  直感的には$set$は$S$の値$s$と$A$の値$a$を受け取って、$s$の内部の$A$の値を$a$に置き換えた、新しい$S$の値を返す関数である。また$get$は$S$の値$s$の内部の$A$の値を返す関数である。
+  
+  例として\pr{Person}型の値が型の直積によって\pr{String}型の値を持つとする。この\pr{Person}の値の中の文字列を$set$、$get$を用いて記述する
+  \begin{lstlisting}
+    type Person = (String, Int)
+
+    set :: (Person, String) -> Person
+    set (p, s) = (s, snd p)
+    get :: Person -> String
+    get = fst
+
+    person :: Person
+    person = ("A",20)
+    -- >>> get person
+    -- "A"
+    -- >>> set (person, "B")
+    -- ("B",20)
+  \end{lstlisting}
+  ここでは直積型を用いて$S$の値が$A$の値を持つことを明示的に示したが、一般の場合ではそうは行かない。そのため$set,\ get$関数による等式で間接的に示す。
+  \[\mor{\pi_A = get\circ set}{S\times A}{A}\]
+  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]
+  \[\mor{set\circ(set\times id_A) = put\circ(\pi_S\circ\pi_{S\times A}\times \pi_A)}{(S\times A)\times A}{S}\]
+  １つ目の等式は値をその中の$A$の値によって$set$で置き換えても$S$の値は変わらないことを示す。
+  ２つ目は$set$によって与えた$a$の値が、$get$によって取り出せることを示し、
+  ３つ目はある$s$に$a$を置き換えた時、その前の$a$が上書きされることを示している。
+
+  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$の値、不可能であればそのまま$S$の値を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
+  \begin{lstlisting}   
+    newtype Odd = Odd{toInt :: Integer} deriving Show
+    match :: Integer -> Either Integer Odd
+    match x = if odd x 
+      then Right (Odd x)
+      else Left x
+    review :: Odd -> Integer
+    review = toInt
+
+    -- >>> match 4
+    -- Left 4
+    -- >>> match 3
+    -- Right (Odd {toInt = 3})
+    -- >>> review (Odd 5)
+    -- 5
+  \end{lstlisting}
+  Lensと同様にPrismでも、包含関係を間接的に示すのに$review,\ match$関数を用いた等式で示す。また等式における$[id_S,review]$は積における射の対の双対である。
+  \[match\circ review = \iota_A\mor{}{A}{S+A}\]
+  \[[id_S,review]\circ match = id_S\mor{}{S}{S}\]
+  １つ目の等式は$A$の値$a$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが$a$を$S+A$に入射したものと一致することを示している。
+  ２つ目の等式は$S$の値$s$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なった値は$s$と一致し、ダウンキャストが失敗した場合も$s$と一致することを示している。
+  
+  ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(S,A)$、Prismの$\mor{review}{A}{S}$と$\mor{match}{S}{S+A}$の組の全体を$Prism(S,A)$と表記することにしよう。これはHaskellにおいてはそのような多相型を定義することである。
+  \begin{lstlisting}
+    data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
+    data Prism s a = Prism{review :: a -> s , match :: s -> Either s a}
+    -- >>> :t Lens
+    -- Lens :: (s -> a) -> ((s, a) -> s) -> Lens s a
+    -- >>> :t Prism
+    -- Prism :: (a -> s) -> (s -> Either s a) -> Prism s a
+  \end{lstlisting}
+
+  また$Lens(S,A)$における$get$関数を$get_{S,A}$と表記する。また$set$関数やPrismにおいても同様に表記する。
+  
+  これによってLensの合成$\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}$が定義を行う。
+  \begin{define}
+    \[\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}\]なる関数$\circ$を
+    任意の$\mor{set_{T,S}}{T\times S}{T}, \mor{get_{T,S}}{T}{S},\ \mor{set_{S,A}}{S\times A}{S},\ \mor{get_{S,A}}{S}{A}$に対して
+    \begin{align*}
+      get_{T,A}&=get_{S,A}\circ get_{T,S}\\
+      set_{T,A}&=set_{T,S}\circ(id_T\times set)\circ a_{TSA}\circ(\tuple{id_T, get_{T,S}}\times id_A)
+    \end{align*}
+    と定義する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (TA) at (0, 0) {$T\times A$};
+        \node (TSpA) at (4, 0) {$(T\times S)\times A$};
+        \node (TpSA) at (8, 0) {$T\times (S\times A)$};
+        \node (TS) at (12, 0) {$T\times S$};
+        \node (T) at (14, 0) {$T$};
+
+				\draw[->] (TA) to node{\scriptsize$\tuple{id_T,get_{T,S}}\times id_A$}(TSpA);
+        \draw[->] (TSpA) to node{$a_{TSA}$}(TpSA);
+        \draw[->] (TpSA) to node{$id_T\times set_{S,A}$}(TS);
+        \draw[->] (TS) to node{$set_{T,S}$}(T);
+
+      \end{tikzpicture}
+    \end{center}
+  \end{define}
+  $set_{T,A}$の定義が複雑かもしれないが、単に$T$から$S$を取り出し、$S$に$A$を与えてその$S$をまた$T$に戻しているだけである。
+
+  またLensの合成において恒等射のような働きをするLensも定義できる。
+  \begin{define}[恒等Lens]
+    \begin{align*}
+      get_{S,S} &= id_S\\
+      set_{S,S} &= \pi_{L,S\times S}
+    \end{align*}
+  \end{define}
+  PrismにおいてもLensと同様に合成が定義できる。
+  \subsection{Opticsへの一般化}
+  Opticsを構成するための圏論の概念としてコエンドを定義する。
+  \begin{define}[コエンド]
+    ある圏$\cat{C,D}$と、関手$\functor{F}{C^{op}\times C}{D}$に対するコエンド$(\coend{C}{C} F(C,C),\kappa)$を以下のように構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[余楔] 余楔と呼ばれる組$(Y,\mu)$を、圏$\cat{D}$のある対象$Y$と、
+        圏$\cat{C}$の任意の対象$X$に対して$\mor{\mu_C}{Y}{F(X,X)}$なる射が存在し、圏$\cat{C}$の任意の射$\mor{f}{B}{A}$に対して$\mu_A\circ F(A,f)=\mu_B\circ F(f,B)$が成り立つような$\mu$によって構成する。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (FG) at (0, 0) {Y};
+            \node (FAGA) at (3, 0) {$F(A,A)$};
+            \node (FBGB) at (0, -2) {$F(B,B)$};
+            \node (FAGB) at (3, -2) {$F(A,B)$};
+    
+            \draw[<-] (FG) to node{$\mu_A$}(FAGA);  
+            \draw[<-] (FG) to node{$\mu_B$}(FBGB);
+            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
+            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
+          \end{tikzpicture}
+        \end{center}
+        \item[普遍性] ある余楔$(\coend{C}{C}F(C,C),\kappa)$が$F$に対してコエンドであるとは、余楔$(Y,\mu)$が存在して、任意の対象$X$において$\mu=h\circ \kappa_X$が成り立つような$\mor{h}{\coend{C}{C} F(C,C)}{Y}$が一意に存在する時である。
+        また、$\kappa$を余積の場合と紛らわしくない場合は入射と呼ぶことにする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (FG) at (0, 0) {$\coend{C}{C} F(C,C)$};
+            \node (X) at (-1.5, 1) {$Y$};
+            \node (FAGA) at (3, 0) {$F(A,A)$};
+            \node (FBGB) at (0, -2) {$F(B,B)$};
+            \node (FAGB) at (3, -2) {$F(A,B)$};
+    
+            \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
+            \draw[<-] (X) to node{$h$}(FG);
+    
+            \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
+            \draw[<-,bend left = 20] (X) to node{$\mu_A$}(FAGA);
+            \draw[<-,bend right = 20] (X) to node[swap]{$\mu_B$}(FBGB);
+            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
+            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
+          \end{tikzpicture}
+        \end{center}
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  コエンドの普遍性は$\coend{C}{C} F(C,C)$が圏$C$の任意の対象に対する$F(C,C)$の余積であることを示していて、$F(A,B)$の元に対し$f$を$A$と$B$のどちらに適用しても入射によって示されるということである。
+  
+  余積という部分をもう少し詳しく見ると、$F(A,A)$から$Y$への射の族$\mu$は同様の射の族$\kappa$によって単なる射$h$へと分解される。同様に$\kappa$が他の単なる射によって分解されるかといえば、コエンドの普遍性からそのような射の族は$\kappa$以外には存在しないと言える。そういった意味で$(\coend{C}{C} F(C,C),\kappa)$は余楔の中で、射の族としての最小限の性質のみを持っていると考えられる。
+
+  コエンドもHaskellで定義できる
+  \begin{lstlisting}
+    {-# LANGUAGE ExistentialQuantification #-}
+    data Coend p = forall a. Coend (p a a)
+    -- >>> :t Coend
+    -- Coend :: p a a -> Coend p
+  \end{lstlisting}
+  \pr{Coend}の値コンストラクタを見ると、\pr{p a a}から\pr{Coend p}へ写る過程で型引数\pr{a}の情報を忘れてしまっている。そのため一度\pr{Coend}に写してしまうと、元の型に復元することはできなくなり、一般的には一切の操作が行えなくなってしまう。そういった意味でこれは任意の型\pr{a}で添字付けられた\pr{p a a}の直和であるように思える。
+
+  コエンドに限らずこういった定義の手法を存在量化と呼ぶが、実用の面では最低限操作が行えることを保証するために\pr{a}の型に制約を加えることが多い。
+
+  次にコエンドとエンドの関係性についての重要な命題を示す。
+  \begin{prop}
+    \[\arset{Set}{\coend{C}{C} T(C,C)}{X}\cong\cend{C}{C}\arset{Set}{T(C,C)}{X}\]であり、$X,T$に対して自然。
+  \end{prop}
+  \begin{proof}
+    反変Hom関手は余連続であるから余極限を保つ。またエンドは極限によって定義できるように、コエンドも余極限によって定義できる。これによってコエンドは反変Hom関手によって保たれるが、反変性よりコエンドの双対であるエンドとして保たれる。
+  \end{proof}
+  \begin{define}[Optics]
+    対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticを
+    \[Optic_\cat{C}(S,S',A,A')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
+  \end{define}
+  この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
+  \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
+  次にOpticsがLens、Prismの一般化であることを示したいが、そのために余米田の補題が必要であるためここで示す。
+
+  \begin{define}[余米田の補題]
+    任意の圏$\cat{C}$と対象$A$と関手$\functor{F}{C}{Set}$において
+    \[FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}\]
+    またここでの積分記号はエンドではなくコエンドである。
+  \end{define}
+  \begin{proof}
+    米田の原理より、\[A\cong B\iff\arset{C}{A}{-}\cong\arset{C}{B}{-}\]であるから、$\arset{Set}{FA}{X}\cong\arset{Set}{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}$が$X$に対して自然に成り立つことを示せば良い。またコエンドは関手であるから、同型を保つ。
+    \begin{align*}
+      \arset{Set}{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}&\cong\cend{C}{C}\arset{Set}{FC\times\arset{C}{C}{A}}{X}&\text{(反変Hom関手の余極限の保存)}\\
+      &\cong\cend{C}{C}\arset{Set}{\arset{C}{C}{A}\times FC}{X}&\text{(積の交換)}\\
+      &\cong\cend{C}{C}\arset{Set}{\arset{C}{C}{A}}{\arset{Set}{FC}{X}}&\text{(べき随伴の射集合同型)}\\
+      &\cong\arset{Set}{FA}{X}&\text{(反変米田の補題)}
+    \end{align*}
+    よってである。計算のために使用した同型はすべて$X,F,A$に対して自然であるから、$FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}$が成り立ち、$F,A$に対して自然である。
+  \end{proof}
+  また同様の方法で$F$に反変関手を取る場合も証明できる。
+  すなわち、任意の関手$\functor{F}{C^{op}}{Set}$と対象$A$に対して
+  \[FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}\]が成り立つ。
+
+  余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的な入射の構成は不明である。余楔を用いた証明も思いつくが、$\cat{H}$が余積を持つことの証明のようにコエンドの元を列挙できないため、この方法では難しい。そのため厳密な証明では無いが、
+  \begin{proof}
+    $(FA,\omega)$がコエンドであるとは、任意の余楔$(X,\mu)$に対して$h\circ\omega_B = \mu_B$なる射$h$が一意に存在するときである。$Fb$の任意の元$b$と$\mor{g}{B}{A}$に対して\[\omega_B(b, f) = Ff(b)\]と定義する。すると任意の射$\mor{g}{C}{A}$と$Fb$の任意の元$b$に対し\[\omega_B(b,g\circ f)=F(g\circ f)(b)=Fg(Ff(b))=\omega_C(Ff(b),g)\]が成り立つから、$(FA,\omega)$は確かに余楔である。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$FA$};
+        \node (X) at (-2.5, 1) {$X$};
+        \node (FAGA) at (5, 0) {$FB\times\arset{Set}{B}{A}$};
+        \node (FBGB) at (0, -2) {$FC\times\arset{Set}{C}{A}$};
+        \node (FAGB) at (5, -2) {$FB\times\arset{Set}{C}{A}$};
+    
+        \draw[<-] (FG) to node{$\omega_B$}(FAGA);
+        \draw[<-] (X) to node{$h$}(FG);
+    
+        \draw[<-] (FG) to node{$\omega_C$}(FBGB);
+        \draw[<-,bend left = 20] (X) to node{$\mu_A$}(FAGA);
+        \draw[<-,bend right = 20] (X) to node[swap]{$\mu_B$}(FBGB);
+        \draw[<-] (FAGA) to node{$id_{FC}\times \arset{Set}{f}{A}$}(FAGB);
+        \draw[<-] (FBGB) to node{$Ff\times id_{\arset{Set}{C}{A}}$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+
+    ここで\[h = \mu_A(-,id_A)\]とすると、任意の$B$とその元$b$、射$\mor{f}{B}{A}$に対して
+    \begin{align*}
+      \mu_A(-,id_A)\circ\omega_B(b,f) &= \mu_A(Ffb,id_A)\\
+      &=\mu_B(b,f)&\text{(余楔の定義)}
+    \end{align*}
+    であるから、$\mu_A(-,id_A)\circ\omega_B = \mu_B$であることが分かった。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$FA$};
+        \node (X) at (-2.5, 1) {$X$};
+        \node (FAGA) at (5, 0) {$FB\times\arset{Set}{B}{A}$};
+        \node (FBGB) at (0, -2) {$FA\times\arset{Set}{A}{A}$};
+        \node (FAGB) at (5, -2) {$FB\times\arset{Set}{A}{A}$};
+    
+        \draw[<-] (FG) to node{$\omega_B$}(FAGA);
+        \draw[<-] (X) to node{$\mu_A(-,id_A)$}(FG);
+    
+        \draw[<-] (FG) to node{$\omega_A$}(FBGB);
+        \draw[<-,bend left = 20] (X) to node{$\mu_B$}(FAGA);
+        \draw[<-,bend right = 20] (X) to node[swap]{$\mu_A$}(FBGB);
+        \draw[<-] (FAGA) to node{$id_{FB}\times \arset{Set}{f}{A}$}(FAGB);
+        \draw[<-] (FBGB) to node{$Ff\times id_{\arset{Set}{A}{A}}$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+    次にこのような$\mu_A(-,id_A)$の一意性を調べれば良い。$h'\circ\omega_B = \mu_B$となるような$h'$が存在するとする。すると、任意の$B$とその元$b$、射$\mor{f}{B}{A}$に対して
+    \begin{align*}
+      h'\circ\omega_B(b,f) &=\mu_B(b,f)\\
+      &=\mu_A(Ffb,id_A)\\
+      &=\mu_A(-,id_A)(Ffb)\\
+      &=\mu_A(-,id_A)\circ \omega_B(b,f)\\
+    \end{align*}
+    よって
+  \end{proof}
+
+
+  \begin{prop}
+    $Optic(S,S',A,A')_{\cat{C},\times}$をOpticの定義のテンソル積を積に置き換えたものとする。すると、
+    \[Optic(S,S,A,A)_{\cat{C},\times} = Lens(S,A)\]である。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}&\cong\coend{C}{M}\arset{C}{S}{M}\times \arset{C}{S}{A}\times \arset{C}{M\otimes A}{S}&\text{(共変Hom関手の積の保存)}\\
+      &\cong\arset{C}{S}{A}\times \arset{C}{S\times A}{S}&\text{(余米田の補題)}\\
+    \end{align*}
+  \end{proof}
+  同様にPrismもOpticで表せる。
+  \begin{prop}
+    \[Optic(S,S,A,A)_{\cat{C},+} = Prism(S,A)\]である。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M+A}{S}&\cong\coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M}{S}\times \arset{C}{A}{S}&\text{(反変Hom関手の余積の保存)}\\
+      &\cong\arset{C}{S}{S+A}\times \arset{C}{A}{S}&\text{(余米田の補題)}\\
+    \end{align*}
+  \end{proof}
 \end{document}
 ・TaPL
 ・私が書いた圏論入門
@@ -539,6 +836,12 @@
 ・https://hackage.haskell.org/
 ・basic concept of enriched category theory
 
+https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf
+https://hackage.haskell.org/package/optics-0.4.2/docs
+https://arxiv.org/pdf/2001.07488.pdf
+https://arxiv.org/pdf/1809.00738.pdf
+https://arxiv.org/pdf/1501.02503.pdf　(coend calculus)
+https://bartoszmilewski.com/2017/03/29/ends-and-coends/
 タイトル　圏論側からの方向性　圏論の概念
 現在だとデザイン
 総合報告まとめ
