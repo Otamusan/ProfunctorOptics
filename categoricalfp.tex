@@ -457,18 +457,16 @@
   このように定義できる。ただし、ファンクタ則や自然性と同じようにエンドの持つ普遍性は記述できない。またこの定義では\pr{p a b}が共変関手、反変関手として振る舞うことを記述できていないが、これは\pr{p a b}が前に述べた\pr{Profunctor}型クラスのインスタンスであるように制約を持たせれば良い。
   また自然変換の全体はエンドであったから、\pr{p a a}=\pr{f a -> g a}=\pr{(Mor f g) a a}としてエンドによって定義することができる。
   \begin{lstlisting}
-    type Nat f g = End (Mor f g)
-
-    data Mor f g a b = Mor{mor :: f a -> g b}
+    data Nat f g a b = Nat{component :: f a -> g b}
 
     toMaybe :: Either b a -> Maybe a
     toMaybe = either (const Nothing) Just
-
-    toMaybeNat :: End (Mor (Either b) Maybe)
-    toMaybeNat = End (Mor toMaybe)
-
-    -- >>> :t mor (prj toMaybeNat)
-    -- mor (prj toMaybeNat) :: Either b1 b2 -> Maybe b2
+    
+    toMaybeNat :: End (Nat (Either b) Maybe)
+    toMaybeNat = End (Nat toMaybe)
+    
+    -- >>> :t component (prj toMaybeNat)
+    -- component (prj toMaybeNat) :: Either b1 b2 -> Maybe b2
   \end{lstlisting}
   この例では多相関数\pr{toMaybe}をエンド\pr{toMaybeNat}に変換している。また\[\pr{mor.prj :: End (Mor f g) -> f b -> g b}\]によって元の多相関数へと復元することもできる。
   \subsection{関数型とべき随伴}
@@ -557,7 +555,73 @@
     命題\ref{prop-h-has-product}、\ref{prop-h-has-terminal}、
     \ref{prop-h-has-exp-adjoint}より、圏$\cat{H}$はcccである。
   \end{proof}
-  
+  また随伴関手の同値な定義より、
+  \begin{prop}[随伴の射集合同型]
+    \[\arset{H}{A\times B}{C}\cong\arset{H}{A}{C^B}\]であり、$A,B,C$に対して自然である。
+  \end{prop}
+  $B$に対して自然であることは、単位、余単位が$B$について超自然と呼ばれる一般化された自然性を持つことによって示される。
+  またカルテジアン閉圏の性質より、上の命題は射集合ではなく冪で述べることができるようになる
+  \begin{prop}
+    \[C^{A\times B}\cong (C^B)^A\]であり、$A,B,C$に対して自然である。
+  \end{prop}
+  \begin{proof}
+    米田の原理より、$A\cong B\iff\arset{C}{-}{A}\cong\arset{C}{-}{B}$であるから、$\arset{H}{X}{C^{A\times B}}\cong\arset{H}{X}{(C^B)^A}$であり$X$に対して自然であることを示せば良い。
+    \begin{align*}
+      \arset{H}{X}{C^{A\times B}}&\cong\arset{H}{X\times(A\times B)}{C}&\text{(随伴の射集合同型)}\\
+      &\cong\arset{H}{(X\times A)\times B}{C}&\text{(積の結合則)}\\
+      &\cong\arset{H}{X\times A}{C^B}&\text{(随伴の射集合同型)}\\
+      &\cong\arset{H}{X}{(C^B)^A}&\text{(随伴の射集合同型)}
+    \end{align*}
+    計算に使用した同型は$X,A,B,C$において自然であるから、$C^{A\times B}\cong (C^B)^A$が自然同型になる。
+  \end{proof}
+  またこの命題における積を終対象に置き換えたものは以下のようになる。
+  \begin{prop}
+    $A^1\cong A$であり$A$に対して自然
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \arset{H}{X}{A^1}&\cong\arset{H}{X\times 1}{A}&\text{(随伴の射集合同型)}\\
+      &\cong\arset{H}{X}{A}&\text{(積の単位元則)}\\
+    \end{align*}
+    計算に使用した同型は$X,A$に対して自然であるから、$A^1\cong A$であり$A$に対して自然
+  \end{proof}
+  また右随伴関手は連続であるから直ちに以下の同型が成り立つ。
+  \begin{prop}
+    \[(A\times B)^C\cong A^C\times B^C\]
+    \[1^A\cong A\]
+  \end{prop}
+  また詳細は省くが、$\cat{H}$は「対称」モノイダル閉圏であるから、
+  \[A^{(-)}\dashv (A\times -)\]が成り立つ。
+  重要なことは$\functor{A^{(-)}}{H^{op}}{H}$が左随伴関手になり、余連続であるということである。これによって次の命題が成り立つ。
+  \begin{prop}
+    \[C^{A+B}\cong C^A\times C^B\]
+  \end{prop}
+  最後にこれらの同型の同型射をHaskellで定義する。
+  \begin{lstlisting}
+    curry :: ((a, b) -> c) -> a -> b -> c
+    curry = (.coeval).fmap
+
+    uncurry :: (a -> b -> c) -> (a, b) -> c
+    uncurry = (eval.).first
+
+    eval :: (b -> a, b) -> a
+    eval p = fst p $ snd p
+    coeval :: a -> (b -> (a, b))
+    coeval = (,)
+  \end{lstlisting}
+  べき随伴の射集合同型の同型射\pr{curry}と\pr{uncurry}は以前定義した、べき随伴における単位余単位によって定義できる。また\pr{(.coeval)}の\pr{.}は関数の合成ではなく、関数型をファンクタと見なした時の\pr{fmap}として用いている。
+  \begin{lstlisting}
+    outProduct :: (a -> (b, c)) -> (a -> b, a -> c)
+    outProduct f = (fst.f, snd.f)
+    inProduct :: (a -> b, a -> c) -> a -> (b, c)
+    inProduct (f, g) a = (f a, g a)
+
+    outEither :: (Either a b -> c) -> (a -> c, b -> c)
+    outEither f = (f.Left, f.Right)
+    inEither :: (a -> c , b -> c) -> Either a b -> c
+    inEither (f, g) = either f g
+  \end{lstlisting}
+  また左右の冪随伴における余積、積の保存の同型もこのように定義できる。
   \section{Optics}
   \subsection{LensとPrism}
   Opticsの例としてLens、Prismを挙げる。
@@ -752,63 +816,41 @@
   すなわち、任意の関手$\functor{F}{C^{op}}{Set}$と対象$A$に対して
   \[FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}\]が成り立つ。
 
-  余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的な入射の構成は不明である。余楔を用いた証明も思いつくが、$\cat{H}$が余積を持つことの証明のようにコエンドの元を列挙できないため、この方法では難しい。そのため厳密な証明では無いが、
+  余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的な入射の構成は不明である。余楔を用いた証明も思いつくが、$\cat{H}$が余積を持つことの証明のようにコエンドの元を列挙できないため、この方法では難しい。そのため厳密な証明では無いが直接同型射を構成して証明しよう。
+  \begin{prop}
+    $\coend{C}{C} FC\times\arset{C}{C}{A}$の任意の元$x$は入射$\kappa$によって与えられるとする。すなわち$x = \kappa_B(b,f)$となるようなある対象$B$とある元$b$、ある射$\mor{f}{B}{A}$の対$\tuple{b,f}$が一意に存在するとする。
+  \end{prop}
   \begin{proof}
-    $(FA,\omega)$がコエンドであるとは、任意の余楔$(X,\mu)$に対して$h\circ\omega_B = \mu_B$なる射$h$が一意に存在するときである。$Fb$の任意の元$b$と$\mor{g}{B}{A}$に対して\[\omega_B(b, f) = Ff(b)\]と定義する。すると任意の射$\mor{g}{C}{A}$と$Fb$の任意の元$b$に対し\[\omega_B(b,g\circ f)=F(g\circ f)(b)=Fg(Ff(b))=\omega_C(Ff(b),g)\]が成り立つから、$(FA,\omega)$は確かに余楔である。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (FG) at (0, 0) {$FA$};
-        \node (X) at (-2.5, 1) {$X$};
-        \node (FAGA) at (5, 0) {$FB\times\arset{Set}{B}{A}$};
-        \node (FBGB) at (0, -2) {$FC\times\arset{Set}{C}{A}$};
-        \node (FAGB) at (5, -2) {$FB\times\arset{Set}{C}{A}$};
-    
-        \draw[<-] (FG) to node{$\omega_B$}(FAGA);
-        \draw[<-] (X) to node{$h$}(FG);
-    
-        \draw[<-] (FG) to node{$\omega_C$}(FBGB);
-        \draw[<-,bend left = 20] (X) to node{$\mu_A$}(FAGA);
-        \draw[<-,bend right = 20] (X) to node[swap]{$\mu_B$}(FBGB);
-        \draw[<-] (FAGA) to node{$id_{FC}\times \arset{Set}{f}{A}$}(FAGB);
-        \draw[<-] (FBGB) to node{$Ff\times id_{\arset{Set}{C}{A}}$}(FAGB);
-      \end{tikzpicture}
-    \end{center}
-
-    ここで\[h = \mu_A(-,id_A)\]とすると、任意の$B$とその元$b$、射$\mor{f}{B}{A}$に対して
+    同型射$\mor{\phi}{FA}{\coend{C}{C} FC\times\arset{C}{C}{A}}$、$\mor{\phi^{-1}}{\coend{C}{C} FC\times\arset{C}{C}{A}}{FA}$を以下のように定義する
     \begin{align*}
-      \mu_A(-,id_A)\circ\omega_B(b,f) &= \mu_A(Ffb,id_A)\\
-      &=\mu_B(b,f)&\text{(余楔の定義)}
+      \phi(a) &= \kappa_A(a,id_A)\\
+      \phi^{-1}(x) &= \phi^{-1}(\kappa_B(b,f)) = Ffb
     \end{align*}
-    であるから、$\mu_A(-,id_A)\circ\omega_B = \mu_B$であることが分かった。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (FG) at (0, 0) {$FA$};
-        \node (X) at (-2.5, 1) {$X$};
-        \node (FAGA) at (5, 0) {$FB\times\arset{Set}{B}{A}$};
-        \node (FBGB) at (0, -2) {$FA\times\arset{Set}{A}{A}$};
-        \node (FAGB) at (5, -2) {$FB\times\arset{Set}{A}{A}$};
-    
-        \draw[<-] (FG) to node{$\omega_B$}(FAGA);
-        \draw[<-] (X) to node{$\mu_A(-,id_A)$}(FG);
-    
-        \draw[<-] (FG) to node{$\omega_A$}(FBGB);
-        \draw[<-,bend left = 20] (X) to node{$\mu_B$}(FAGA);
-        \draw[<-,bend right = 20] (X) to node[swap]{$\mu_A$}(FBGB);
-        \draw[<-] (FAGA) to node{$id_{FB}\times \arset{Set}{f}{A}$}(FAGB);
-        \draw[<-] (FBGB) to node{$Ff\times id_{\arset{Set}{A}{A}}$}(FAGB);
-      \end{tikzpicture}
-    \end{center}
-    次にこのような$\mu_A(-,id_A)$の一意性を調べれば良い。$h'\circ\omega_B = \mu_B$となるような$h'$が存在するとする。すると、任意の$B$とその元$b$、射$\mor{f}{B}{A}$に対して
+    すると、
     \begin{align*}
-      h'\circ\omega_B(b,f) &=\mu_B(b,f)\\
-      &=\mu_A(Ffb,id_A)\\
-      &=\mu_A(-,id_A)(Ffb)\\
-      &=\mu_A(-,id_A)\circ \omega_B(b,f)\\
+      \phi\circ\phi^{-1}(\kappa_B(b,f))&=\phi(Ffb)\\
+      &=\kappa_A(Ffb,id_A)\\
+      &=\kappa_B(b,f)&\text{(余楔の定義)}\\
+      \phi^{-1}\circ\phi(a) &= \phi^{-1}(\kappa_A(a,id_A))\\
+      &=a
     \end{align*}
-    よって
+    となるから、$\phi\circ\phi^{-1}=id,\ \phi^{-1}\circ\phi=id_{FA}$が成り立ち$FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}$となる。
   \end{proof}
 
+  同型射を具体的な構成によって定義できたため、Haskellでも定義できるようになった。
+  \begin{lstlisting}
+    {-# LANGUAGE ExistentialQuantification #-}
+    data Coend p = forall a. Coend (p a a)
 
+    data CoyonedaRaw f a c b = CoyonedaRaw (f c) (b -> a)
+    type Coyoneda f a = Coend (CoyonedaRaw f a)
+
+    toCoyoneda :: f a -> Coyoneda f a
+    toCoyoneda x = Coend (CoyonedaRaw x id)
+
+    fromCoyoneda ::Functor f => Coyoneda f a -> f a
+    fromCoyoneda (Coend(CoyonedaRaw x y)) = fmap y x
+  \end{lstlisting}
   \begin{prop}
     $Optic(S,S',A,A')_{\cat{C},\times}$をOpticの定義のテンソル積を積に置き換えたものとする。すると、
     \[Optic(S,S,A,A)_{\cat{C},\times} = Lens(S,A)\]である。
@@ -842,6 +884,7 @@ https://arxiv.org/pdf/2001.07488.pdf
 https://arxiv.org/pdf/1809.00738.pdf
 https://arxiv.org/pdf/1501.02503.pdf　(coend calculus)
 https://bartoszmilewski.com/2017/03/29/ends-and-coends/
+https://github.com/BartoszMilewski/Publications/blob/master/TheDaoOfFP/DaoFP.pdf
 タイトル　圏論側からの方向性　圏論の概念
 現在だとデザイン
 総合報告まとめ
