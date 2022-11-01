@@ -455,7 +455,7 @@
     -- prj :: End p -> p a a
   \end{lstlisting}
   このように定義できる。ただし、ファンクタ則や自然性と同じようにエンドの持つ普遍性は記述できない。またこの定義では\pr{p a b}が共変関手、反変関手として振る舞うことを記述できていないが、これは\pr{p a b}が前に述べた\pr{Profunctor}型クラスのインスタンスであるように制約を持たせれば良い。
-  また自然変換の全体はエンドであったから、\pr{p a a}=\pr{f a -> g a}=\pr{(Mor f g) a a}としてエンドによって定義することができる。
+  また自然変換の全体はエンドであったから、\pr{p a a}=\pr{f a -> g a}=\pr{(Nat f g) a a}としてエンドによって定義することができる。
   \begin{lstlisting}
     data Nat f g a b = Nat{component :: f a -> g b}
 
@@ -468,7 +468,7 @@
     -- >>> :t component (prj toMaybeNat)
     -- component (prj toMaybeNat) :: Either b1 b2 -> Maybe b2
   \end{lstlisting}
-  この例では多相関数\pr{toMaybe}をエンド\pr{toMaybeNat}に変換している。また\[\pr{mor.prj :: End (Mor f g) -> f b -> g b}\]によって元の多相関数へと復元することもできる。
+  この例では多相関数\pr{toMaybe}をエンド\pr{toMaybeNat}に変換している。また\[\pr{mor.prj :: End (Nat f g) -> f b -> g b}\]によって元の多相関数へと復元することもできる。
   \subsection{関数型とべき随伴}
   \begin{define}[随伴関手]\label{def-adjoint-functor}
       ある二つの関手$\functor{L}{C}{D}$、$\functor{R}{D}{C}$が随伴関手であるとは、以下の性質を満たす時である。
@@ -627,7 +627,7 @@
   Opticsの例としてLens、Prismを挙げる。
 
   Lensはオブジェクト指向におけるフィールドと、それに対するセッター、ゲッターを一般化した概念である。例えばある型$S$が型$A$を内部に保持する時、$A$に関する操作としては二つの関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$が考えられる。
-  直感的には$set$は$S$の値$s$と$A$の値$a$を受け取って、$s$の内部の$A$の値を$a$に置き換えた、新しい$S$の値を返す関数である。また$get$は$S$の値$s$の内部の$A$の値を返す関数である。
+  直感的には$set$は$S$と$A$を受け取って、$S$の内部の$A$の値を与えられた$A$に置き換えた、新しい$S$の値を返す関数である。また$get$は$S$の内部の$A$の値を返す関数である。
   
   例として\pr{Person}型の値が型の直積によって\pr{String}型の値を持つとする。この\pr{Person}の値の中の文字列を$set$、$get$を用いて記述する
   \begin{lstlisting}
@@ -649,11 +649,11 @@
   \[\mor{\pi_A = get\circ set}{S\times A}{A}\]
   \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]
   \[\mor{set\circ(set\times id_A) = put\circ(\pi_S\circ\pi_{S\times A}\times \pi_A)}{(S\times A)\times A}{S}\]
-  １つ目の等式は値をその中の$A$の値によって$set$で置き換えても$S$の値は変わらないことを示す。
-  ２つ目は$set$によって与えた$a$の値が、$get$によって取り出せることを示し、
-  ３つ目はある$s$に$a$を置き換えた時、その前の$a$が上書きされることを示している。
+  １つ目の等式はある$A$の値に対して、$set$を用いてその値を$S$に入れ$get$で取り出した値が元の$A$と等しいことを示す。
+  ２つ目は$S$から$get$で取り出した$A$の値を$S$に$set$した時、元の$S$と一致することを示している。
+  ３つ目はある$S$に$A$を置き換えた時、その前の$A$が上書きされることを示している。
 
-  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$の値、不可能であればそのまま$S$の値を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
+  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$、不可能であればそのまま$S$を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
   \begin{lstlisting}   
     newtype Odd = Odd{toInt :: Integer} deriving Show
     match :: Integer -> Either Integer Odd
@@ -673,8 +673,8 @@
   Lensと同様にPrismでも、包含関係を間接的に示すのに$review,\ match$関数を用いた等式で示す。また等式における$[id_S,review]$は積における射の対の双対である。
   \[match\circ review = \iota_A\mor{}{A}{S+A}\]
   \[[id_S,review]\circ match = id_S\mor{}{S}{S}\]
-  １つ目の等式は$A$の値$a$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが$a$を$S+A$に入射したものと一致することを示している。
-  ２つ目の等式は$S$の値$s$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なった値は$s$と一致し、ダウンキャストが失敗した場合も$s$と一致することを示している。
+  １つ目の等式は$A$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが最初の$A$を$S+A$に入射したものと一致することを示している。
+  ２つ目の等式は$S$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なったものが最初の$S$と一致し、ダウンキャストが失敗した場合も最初の$S$と一致することを示している。
   
   ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(S,A)$、Prismの$\mor{review}{A}{S}$と$\mor{match}{S}{S+A}$の組の全体を$Prism(S,A)$と表記することにしよう。これはHaskellにおいてはそのような多相型を定義することである。
   \begin{lstlisting}
@@ -792,6 +792,8 @@
   \begin{define}[Optics]
     対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticを
     \[Optic_\cat{C}(S,S',A,A')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
+    
+    また、
   \end{define}
   この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
   \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
@@ -852,8 +854,8 @@
     fromCoyoneda (Coend(CoyonedaRaw x y)) = fmap y x
   \end{lstlisting}
   \begin{prop}
-    $Optic(S,S',A,A')_{\cat{C},\times}$をOpticの定義のテンソル積を積に置き換えたものとする。すると、
-    \[Optic(S,S,A,A)_{\cat{C},\times} = Lens(S,A)\]である。
+    $Optic_{\cat{H},\times}(S,S',A,A')$をOpticの定義のモノイダル積$\otimes$を直積型である積$\times$に置き換えたものとする。すると、
+    \[Optic_{\cat{H},\times}(S,S,A,A) = Lens(S,A)\]である。
   \end{prop}
   \begin{proof}
     \begin{align*}
@@ -863,7 +865,7 @@
   \end{proof}
   同様にPrismもOpticで表せる。
   \begin{prop}
-    \[Optic(S,S,A,A)_{\cat{C},+} = Prism(S,A)\]である。
+    \[Optic_{\cat{C},+}(S,S,A,A) = Prism(S,A)\]である。
   \end{prop}
   \begin{proof}
     \begin{align*}
