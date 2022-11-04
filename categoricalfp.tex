@@ -29,16 +29,12 @@
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
-  \title{関数型言語と圏論の関係性}
+  \title{Optics概論}
   \author{https://otamusan.github.io/FPandCategory/categoricalfp.pdf}
   \maketitle
 	\tableofcontents
   \pagebreak
-  \section{Haskellとデザインパターン}
-  オブジェクト指向言語におけるデザインパターンとは、プログラムの一部を再利用、テストを容易にするための設計手法である。これらは継承やら実装やらのオブジェクト指向言語特有の操作によって抽象化されていて、さらにそれらの操作で閉じている。
-
-  関数型プログラミング、特にHaskellではリストの操作や入出力などの副作用を伴う操作を、抽象的で汎用性があり極力関数型言語の操作で構成される設計によって与えている。これらは言うなればデザインパターンによって言語機能の拡張しているとみなすことができ、こういった設計もここではデザインパターンと呼ぶことにする。
-
+  \section{Haskellの基礎}
   \subsection{関数型}
   Haskellにも一般のプログラミングと同じようにデータ型が存在し、整数値を持つ\pr{Int}型や\pr{True}と\pr{False}を持つ\pr{Bool}型などがある。
   また整数値を受け取って二倍にして返す、つまり$double(x)=2x$なる
@@ -164,7 +160,7 @@
     -- Judge :: Bool -> EitherIB
   \end{lstlisting}
   この例では、\pr{EitherIB}が\pr{Either Int Bool}に該当し、\pr{Value}が\pr{Left}、\pr{Judge}が\pr{Right}に対応する。
-  \subsection{デザインパターンの例}
+  \subsection{Haskellにおける型の応用}
   最後にこれらを応用したMaybe型を見る。
   \begin{lstlisting}
     data Maybe a  =  Nothing | Just a
@@ -193,8 +189,6 @@
   という関数を定義する。これは零除算が発生する場合\pr{Nothing}を返し、そうでない場合は\pr{Just}によって計算結果を\pr{Maybe}に包んで返している。
 
   これによって、\pr{Maybe Float}の値を用いて計算を行うときは、必ず\pr{Nothing}と\pr{Just}の場合分けが必要になり、他の言語でいうNullチェックが必要なことを型レベルで示していることになる。
-
-  またここではこれ以上語らないが、\pr{Maybe}型の挙動はモナドと呼ばれるデザインパターンによって一般化される。これによって特に\pr{a -> Maybe b}型の関数と\pr{b -> Maybe c}型の関数の自然な合成を与えることができる。
   \section{圏論}
   関数型言語では関数という言葉が使われるように、型を属する値の集合、関数を値の集合から値の集合への写像とみなすことができる。集合を写像の視点から観察する場合、圏論によって一般化することが有効である場合が多い。そのため以降は型と関数の議論を圏論によってモデル化することを考える。
   \subsection{型と関数の圏}
