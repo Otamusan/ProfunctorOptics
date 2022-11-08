@@ -550,12 +550,12 @@
     \ref{prop-h-has-exp-adjoint}より、圏$\cat{H}$はcccである。
   \end{proof}
   また随伴関手の同値な定義より、
-  \begin{prop}[随伴の射集合同型]
+  \begin{prop}[随伴の射集合同型]\label{prop-arset-iso-by-adjunction}
     \[\arset{H}{A\times B}{C}\cong\arset{H}{A}{C^B}\]であり、$A,B,C$に対して自然である。
   \end{prop}
   $B$に対して自然であることは、単位、余単位が$B$について超自然と呼ばれる一般化された自然性を持つことによって示される。
   またカルテジアン閉圏の性質より、上の命題は射集合ではなく冪で述べることができるようになる
-  \begin{prop}
+  \begin{prop}[冪随伴の冪同型]\label{prop-exp-iso-by-exp-adjunction}
     \[C^{A\times B}\cong (C^B)^A\]であり、$A,B,C$に対して自然である。
   \end{prop}
   \begin{proof}
@@ -569,7 +569,7 @@
     計算に使用した同型は$X,A,B,C$において自然であるから、$C^{A\times B}\cong (C^B)^A$が自然同型になる。
   \end{proof}
   またこの命題における積を終対象に置き換えたものは以下のようになる。
-  \begin{prop}
+  \begin{prop}\label{prop-a1-cong-a-by-exp}
     $A^1\cong A$であり$A$に対して自然
   \end{prop}
   \begin{proof}
@@ -580,14 +580,14 @@
     計算に使用した同型は$X,A$に対して自然であるから、$A^1\cong A$であり$A$に対して自然
   \end{proof}
   また右随伴関手は連続であるから直ちに以下の同型が成り立つ。
-  \begin{prop}
+  \begin{prop}\label{prop-continuity-of-exp-functor}
     \[(A\times B)^C\cong A^C\times B^C\]
     \[1^A\cong A\]
   \end{prop}
   また詳細は省くが、$\cat{H}$は「対称」モノイダル閉圏であるから、
   \[A^{(-)}\dashv (A\times -)\]が成り立つ。
   重要なことは$\functor{A^{(-)}}{H^{op}}{H}$が左随伴関手になり、余連続であるということである。これによって次の命題が成り立つ。
-  \begin{prop}
+  \begin{prop}\label{prop-continuity-of-contravariant-exp-functor}
     \[C^{A+B}\cong C^A\times C^B\]
   \end{prop}
   最後にこれらの同型の同型射をHaskellで定義する。
@@ -616,6 +616,37 @@
     inEither (f, g) = either f g
   \end{lstlisting}
   また左右の冪随伴における余積、積の保存の同型もこのように定義できる。
+
+  積を持つ圏の一般化であるモノイダル圏を定義しよう。
+  \begin{define}[モノイダル圏]\label{def-monoidal-cat}
+    ある圏$\cat{C}$がモノイダル圏であるとは、
+    \begin{quote}
+      \begin{mydescription}
+        \item[モノイド積関手]
+        ある関手$\functor{\otimes}{C\times C}{C}$が存在する。またこの積で表される対象をテンソル積と呼ぶ。
+        \item[単位対象]圏$\cat{C}$のある対象$I$が存在する。またこの対象を単位対象と呼ぶ。
+        \item[結合子]ある射$\mor{a_{ABC}}{(A\otimes B)\otimes C}{A\otimes(B\otimes C)}$が存在して同型射となる。また$A,B,C$に対して自然。
+        \item[左単位子]ある射$\mor{\lambda_c}{I\otimes C}{C}$が存在して同型射となる。また$C$に対して自然。
+        \item[右単位子]ある射$\mor{\rho_c}{C\otimes I}{C}$が存在して同型射となる。また$C$に対して自然。
+        \item[三角恒等式]以下の等式を満たす必要がある。
+        \[(id_X\otimes \lambda_Y)\circ a_{XIY}=\rho_X\otimes id_Y\]
+        \item[五角恒等式]以下の等式を満たす必要がある。
+        \[a_{WXY\otimes Z}\circ a_{W\otimes XYZ}=(id_W\otimes a)\circ a_{WX\otimes YZ}\circ(a_{WXY}\otimes id_Z) \]
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  三角恒等式と五角恒等式についての説明は省略するが、これを示すと$\otimes$の射関数の適用、$a,l,r$とその逆射や恒等射で構成される自然変換の図式が自然に可換になる。
+  \begin{define}[対称モノイダル圏]\label{def-symmetric-monoidal-cat}
+    圏$\cat{C}$が対称モノイダル圏であるとは、$\cat{C}$がモノイダル圏であり、$\mor{c_{AB}}{A\times B}{B\times A}$が$\mor{c_{BA}}{B\times A}{A\times B}$を逆射とする自然同型であり、以下の等式を満たす時である。
+    \[a_{YZX}\circ c_{X,Y\otimes Z}\circ a_{XYZ}=(id_Y\otimes c_{XZ})\circ a_{YXZ}\circ(c_{XY}\otimes id_Z)\]
+    \[\rho_{X}\circ c_{IX} = \lambda_{X}\]
+  \end{define}
+  \begin{prop}\label{prop-h-is-smc}
+    圏$\cat{H}$は対称モノイダル圏である。
+  \end{prop}
+  \begin{proof}
+    省略。
+  \end{proof}
   \section{Optics}
   \subsection{LensとPrism}
   Opticsの例としてLens、Prismを挙げる。
@@ -683,7 +714,7 @@
   また$Lens(S,A)$における$get$関数を$get_{S,A}$と表記する。また$set$関数やPrismにおいても同様に表記する。
   
   これによってLensの合成$\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}$が定義を行う。
-  \begin{define}
+  \begin{define}\label{def-comp-of-lens}
     \[\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}\]なる関数$\circ$を
     任意の$\mor{set_{T,S}}{T\times S}{T}, \mor{get_{T,S}}{T}{S},\ \mor{set_{S,A}}{S\times A}{S},\ \mor{get_{S,A}}{S}{A}$に対して
     \begin{align*}
@@ -710,7 +741,7 @@
   $set_{T,A}$の定義が複雑かもしれないが、単に$T$から$S$を取り出し、$S$に$A$を与えてその$S$をまた$T$に戻しているだけである。
 
   またLensの合成において恒等射のような働きをするLensも定義できる。
-  \begin{define}[恒等Lens]
+  \begin{define}[恒等Lens]\label{def-identity-lens}
     \begin{align*}
       get_{S,S} &= id_S\\
       set_{S,S} &= \pi_{L,S\times S}
@@ -719,7 +750,7 @@
   PrismにおいてもLensと同様に合成が定義できる。
   \subsection{Opticsへの一般化}
   Opticsを構成するための圏論の概念としてコエンドを定義する。
-  \begin{define}[コエンド]
+  \begin{define}[コエンド]\label{def-coend}
     ある圏$\cat{C,D}$と、関手$\functor{F}{C^{op}\times C}{D}$に対するコエンド$(\coend{C}{C} F(C,C),\kappa)$を以下のように構成する。
     \begin{quote}
       \begin{mydescription}
@@ -777,23 +808,22 @@
   コエンドに限らずこういった定義の手法を存在量化と呼ぶが、実用の面では最低限操作が行えることを保証するために\pr{a}の型に制約を加えることが多い。
 
   次にコエンドとエンドの関係性についての重要な命題を示す。
-  \begin{prop}
+  \begin{prop}\label{prop-preservation-coend-by-hom-functor}
     \[\arset{Set}{\coend{C}{C} T(C,C)}{X}\cong\cend{C}{C}\arset{Set}{T(C,C)}{X}\]であり、$X,T$に対して自然。
   \end{prop}
   \begin{proof}
     反変Hom関手は余連続であるから余極限を保つ。またエンドは極限によって定義できるように、コエンドも余極限によって定義できる。これによってコエンドは反変Hom関手によって保たれるが、反変性よりコエンドの双対であるエンドとして保たれる。
   \end{proof}
-  \begin{define}[Optics]
-    対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticを
+  \begin{define}[Optics]\label{def-optics}
+    対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticの集合を
     \[Optic_\cat{C}(S,S',A,A')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
-    
-    また、
+    また、$\kappa_M(l,r)$となる$Optic_\cat{C}(S,S',A,A')$の元を、紛らわしくない場合に$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$と表記する。
   \end{define}
   この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
   \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
   次にOpticsがLens、Prismの一般化であることを示したいが、そのために余米田の補題が必要であるためここで示す。
 
-  \begin{define}[余米田の補題]
+  \begin{define}[余米田の補題]\label{def-coyoneda-lemma}
     任意の圏$\cat{C}$と対象$A$と関手$\functor{F}{C}{Set}$において
     \[FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}\]
     またここでの積分記号はエンドではなくコエンドである。
@@ -814,7 +844,7 @@
 
   余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的な入射の構成は不明である。余楔を用いた証明も思いつくが、$\cat{H}$が余積を持つことの証明のようにコエンドの元を列挙できないため、この方法では難しい。そのため厳密な証明では無いが直接同型射を構成して証明しよう。
   \begin{prop}
-    $\coend{C}{C} FC\times\arset{C}{C}{A}$の任意の元$x$は入射$\kappa$によって与えられるとする。すなわち$x = \kappa_B(b,f)$となるようなある対象$B$とある元$b$、ある射$\mor{f}{B}{A}$の対$\tuple{b,f}$が一意に存在するとする。
+    $\coend{C}{C} FC\times\arset{C}{C}{A}$の任意の元$x$は入射$\kappa$によって与えられるとする。すなわち$x = \kappa_B(b,f)$となるようなある対象$B$とある元$b$、ある射$\mor{f}{B}{A}$の対$\tuple{b,f}$が一意に存在するとする。この時、$FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}$が成り立つ。
   \end{prop}
   \begin{proof}
     同型射$\mor{\phi}{FA}{\coend{C}{C} FC\times\arset{C}{C}{A}}$、$\mor{\phi^{-1}}{\coend{C}{C} FC\times\arset{C}{C}{A}}{FA}$を以下のように定義する
@@ -846,8 +876,18 @@
 
     fromCoyoneda ::Functor f => Coyoneda f a -> f a
     fromCoyoneda (Coend(CoyonedaRaw x y)) = fmap y x
+
+    data CoyonedaRaw' f a c b = CoyonedaRaw' (f c) (a -> b)
+    type Coyoneda' f a = Coend (CoyonedaRaw' f a)
+
+    toCoyoneda' :: f a -> Coyoneda' f a
+    toCoyoneda' x = Coend (CoyonedaRaw' x id)
+
+    fromCoyoneda' :: Contravariant f => Coyoneda' f a -> f a
+    fromCoyoneda' (Coend(CoyonedaRaw' x y)) = contramap y x
   \end{lstlisting}
-  \begin{prop}
+
+  \begin{prop}\label{prop-lens-is-optics}
     $Optic_{\cat{H},\times}(S,S',A,A')$をOpticの定義のモノイダル積$\otimes$を直積型である積$\times$に置き換えたものとする。すると、
     \[Optic_{\cat{H},\times}(S,S,A,A) = Lens(S,A)\]である。
   \end{prop}
@@ -858,7 +898,7 @@
     \end{align*}
   \end{proof}
   同様にPrismもOpticで表せる。
-  \begin{prop}
+  \begin{prop}\label{prop-prism-is-optics}
     \[Optic_{\cat{C},+}(S,S,A,A) = Prism(S,A)\]である。
   \end{prop}
   \begin{proof}
@@ -867,6 +907,227 @@
       &\cong\arset{C}{S}{S+A}\times \arset{C}{A}{S}&\text{(余米田の補題)}\\
     \end{align*}
   \end{proof}
+  この計算も具体的な操作によって行なっているため、Haskellで記述することができる。また紙面の関係上Lensのみを示す。
+  \begin{lstlisting}
+  coendFmap :: forall p q. (forall a. p a a -> q a a) 
+  -> Coend p -> Coend q
+  coendFmap f (Coend p) = Coend (f p)
+  
+  data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
+
+  opticToLens :: Optic s s a a (,) -> Lens s a
+  opticToLens x = toLens $ fromCoyoneda' (coendFmap f x) where
+
+    f :: OpticRaw s s a a (,) m n 
+    -> CoyonedaRaw' (PseudoLens s a) s m n
+    f (OpticRaw l r) = CoyonedaRaw' (PseudoLens (snd (outProduct l)) r)
+    (fst (outProduct l)) 
+
+    toLens :: PseudoLens s a s -> Lens s a
+    toLens (PseudoLens x y) = Lens x y
+
+  lensToOptic :: Lens s a -> Optic s s a a (,)
+  lensToOptic (Lens get set) =coendFmap f 
+  (toCoyoneda'(PseudoLens get set)) where
+
+    f :: CoyonedaRaw' (PseudoLens s a) s m n -> OpticRaw s s a a (,) m n
+    f (CoyonedaRaw' (PseudoLens g s) y) = OpticRaw (inProduct (y, g)) s
+
+  data PseudoLens s a m = PseudoLens{g :: s -> a , s :: (m, a) -> s}
+
+  instance Contravariant (PseudoLens s a) where
+    contramap :: (c -> b) -> PseudoLens s a b -> PseudoLens s a c
+    contramap f (PseudoLens x y) = PseudoLens x (y.first f)
+  \end{lstlisting}
+  ここでの\pr{coendFmap}は、双関手間の自然変換\[\natf{\alpha}{P}{Q}{H\times H}{H}\]をコエンド間の射\[\mor{\displaystyle\int\alpha}{\coend{H}{C}P(C,C)}{\coend{H}{C}Q(C,C)}\]へと写す射関数である。コエンドを取る操作が関手であることは、コエンドを構成する余極限を取る操作が関手であることからわかる。
+
+
+  またこの同型によって、Lensを構成する関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$からOptics$\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A}{S}$の値に変換するかを見ることができる。実際に逆にたどると、
+  \begin{align*}
+    &\tuple{get,set}&:&\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
+    \intertext{$F(M)=\arset{C}{S}{A}\times \arset{C}{M\times A}{S}$とすると、}
+    =&\tuple{get,set}&:&F(S)\\
+    \intertext{余米田の補題の$\phi(a)=\kappa_A(a,id_A)$より、}
+    \rightarrow&\kappa_S(\tuple{get,set},id_S)&:&\coend{C}{M}F(M)\times \arset{C}{S}{M}\\
+    \intertext{表記を変えて}
+    =&\kappa_S(get,set,id_S)&:&\coend{C}{M}\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\times \arset{C}{S}{M}\\
+    \rightarrow&\kappa_S(id_S,get,set)&:&\coend{C}{M}\arset{C}{S}{M}\times\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
+    \intertext{$\mor{id_S}{S}{S}$、$\mor{get}{S}{A}$であるから射の対$\mor{\tuple{id_S,get}}{S}{S\times A}$を取って、}
+    \rightarrow&\kappa_S(\tuple{id_S,get},set)&:&\coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}
+  \end{align*}
+  というように$Optic(S,S,A,A)_{\cat{C},\times}$の値が得られる。ここでの$\kappa_S(\tuple{id_S,get},set)$は\[\tuple{\tuple{id_S,get},set}:\arset{C}{S}{S\times A}\times \arset{C}{S\times A}{S}\]をコエンドへ入射したものであり、Lensの場合は$M=S$となることが分かった。これにより、Opticは与えられた$S$を$\mor{l}{S}{M\otimes A}$によって$M$と$A$に分解し、$\mor{r}{M\otimes A}{S}$によって新たに与えられた$A$と、$l$によって得られた$M$からまた$S$を再構成する。といった流れになっていることが分かる。またこの解釈は\[Optic(S,S',A,A')_{\cat{C}}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]でも問題なく機能する。
+  \subsection{Opticsの圏論的性質}
+  Lens、Prismの合成と同様にOpticの合成\[\mor{\circ}{Optic_{\cat{C}}(S,S',A,A')\times Optic_{\cat{C}}(T,T',S,S')}{Optic_{\cat{C}}(T,T',A,A')}\]を考える。
+  \begin{prop}[フビニの定理]\label{prop-fubini-theorem}
+    \[\cend{C}{C}\ \ \ \ \cend{D}{D}T(C,C,D,D)\cong\cend{C\times D}{C,D}T(C,C,D,D)\]
+    \[\coend{C}{C}\ \ \ \ \coend{D}{D}T(C,C,D,D)\cong\coend{C\times D}{C,D}T(C,C,D,D)\]
+  \end{prop}
+  \begin{proof}
+    省略。エンドが右随伴関手であり、その一意性により示せる。
+  \end{proof}
+  \begin{prop}[積のコエンドの保存]\label{prop-preservation-of-coend-by-product}
+    関手$\functor{T,S}{C^{op}\times C}{Set}$において
+    \[\coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)\]であり$T,S$に対して自然。
+  \end{prop}
+  \begin{proof}
+    前提として、$\cat{Set}$においてもべき随伴$(-\times B)\dashv(-)^B$が成り立つから、$(-\times B)$は左随伴関手であり余連続である。
+    \begin{align*}
+      \coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)&\cong\coend{C}{C}(T(C,C)\times \coend{C}{D}S(D,D))&\text{(積関手の余連続性)}\\
+      &\cong\coend{C}{C}(\coend{C}{D}S(D,D)\times T(C,C))&\text{(積関手の余連続性)}\\
+      &\cong\coend{C}{C}(\coend{C}{D}T(C,C)\times S(D,D))&\text{(積の交換則)}\\
+      &\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)&\text{(フビニの定理)}
+    \end{align*}
+  \end{proof}
+  \begin{define}[Opticの合成]\label{def-comp-of-optic}
+    Opticの合成{\scriptsize\[\mor{\circ}{\coend{C\times C}{M,N}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を定義するが、コエンドの普遍性より、
+    \[\mor{\circ_{MN}}{\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]
+    を各$M,N$に対して$\circ_{MN}$を定義できれば$\circ$は一意に定まる。
+
+    \[\tuple{l,r}\circ_{MN}\tuple{l',r'}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]によって$\circ$を定義する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, 0) {$T$};
+        \node (NS) at (2, 0) {$N\otimes S$};
+        \node (NMA) at (5, 0) {$N\otimes (M\otimes A)$};
+        \node (NMA') at (9, 0) {$(N\otimes M)\otimes A$};
+
+        \draw[->] (T) to node{$l'$}(NS);
+        \draw[->] (NS) to node{$N\otimes l$}(NMA);
+        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
+
+        \node (T) at (0, -1) {$T'$};
+        \node (NS) at (2, -1) {$N\otimes S'$};
+        \node (NMA) at (5, -1) {$N\otimes (M\otimes A')$};
+        \node (NMA') at (9, -1) {$(N\otimes M)\otimes A'$};
+
+        \draw[<-] (T) to node{$r'$}(NS);
+        \draw[<-] (NS) to node{$N\otimes r$}(NMA);
+        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
+
+      \end{tikzpicture}
+    \end{center}
+    このようにOptic同士の合成はつなげると言うよりかは、埋め込むという印象の方が強い。
+  \end{define}
+  \begin{define}[恒等Optic]\label{def-identity-optic}
+    任意の対象$S,S'$に対する恒等Opticを、モノイダル圏の左単位子$\mor{\lambda_S^{-1}}{S}{I\otimes S}$、$\mor{\lambda_{S'}}{I\otimes S}{S}$によって、
+    \[id_{S,S'}=\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]と定義する。
+  \end{define}
+  \begin{prop}[Opticの結合則]\label{prop-associativity-of-optic}
+    任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')},\ \mor{\tuple{l',r'}}{(T,T')}{(S,S')},\ \mor{\tuple{l'',r''}}{(R,R')}{(T,T')}$に対して、
+    \[(\tuple{l,r}\circ\tuple{l',r'})\circ\tuple{l'',r''}=\tuple{l,r}\circ(\tuple{l',r'}\circ\tuple{l'',r''})\]が成り立つ。
+  \end{prop}
+  \begin{proof}
+    Opticの合成と同様に、フビニの定理より三つのコエンドを一つのコエンドとして計算できる。またモノイダル積関手の射の合成の保存より、適当に展開すれば簡単に示せる。
+  \end{proof}
+  \begin{prop}[Opticの単位元則]\label{prop-optic-has-identity}
+    任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$に対して、
+    \[\tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}=\tuple{l,r}\]
+    \[\tuple{l,r}\circ\tuple{\lambda_S^{-1},\lambda_{S'}}=\tuple{l,r}\]
+    が成り立つ。
+  \end{prop}
+  \begin{proof}
+    左単位子の振る舞いを観察するために前者は実際に示そう。
+    \begin{align*}
+      \tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}
+      &=\tuple{a^{-1}_{MIA}\circ(M\otimes\lambda_A^{-1})\circ l, r\circ(M\otimes\lambda_{A'})\circ a_{MIA'}}&\text{(Opticの合成の定義)}\\
+      &=\tuple{(\rho_M^{-1}\otimes A)\circ l,r\circ(\rho_M\otimes A')}&\text{(モノイダル圏の三角恒等式)}\\
+      &=\tuple{l,r\circ (\rho_M\otimes A')\circ(\rho_M^{-1}\otimes A')}&\text{(余楔の定義)}\\
+      &=\tuple{l,r}
+    \end{align*}
+    またモノイダル圏の三角恒等式を使用する場面においては$l$の方の図式を示しておく。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (S) at (0, 0) {$S$};
+        \node (MA) at (2, 0) {$M\otimes A$};
+        \node (MIA) at (5, 0) {$M\otimes (I\otimes A)$};
+        \node (MIA') at (5, -2) {$(M\otimes I)\otimes A$};
+        \draw[->] (S) to node{$l$}(MA);
+        \draw[->] (MA) to node{$M\otimes\lambda_A^{-1}$}(MIA);
+        \draw[->] (MIA) to node{$a^{-1}_{MIA}$}(MIA');
+        \draw[->] (MA) to node[swap]{$\rho^{-1}\otimes A$}(MIA');
+
+      \end{tikzpicture}
+    \end{center}
+  \end{proof}
+  これによって圏の公理をひと通り示せたから、実際にOpticsの圏が定義できる。
+  \begin{define}[Opticsの圏]\label{def-cat-of-optics}
+    対称モノイダル圏$\cat{C}$上の圏$\cat{Optic_C}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象] 対象の集合を$\obj{Optic_C}=\obj{C}\times \obj{C}$とする。
+				\item[射] 任意の対象$(S,S'), (A,A')$に対する射集合を\[\arset{Optic_C}{(S,S')}{(A,A')}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}\]とする。
+				\item[射の合成] 定義\ref{def-comp-of-optic}を射の合成とする。
+				\item[恒等射の存在] 定義\ref{def-identity-optic}を恒等射とする。
+				\item[結合律] 命題\ref{prop-associativity-of-optic}より成り立つ。
+				\item[単位元律] 命題\ref{prop-optic-has-identity}より成り立つ。
+			\end{mydescription}
+		\end{quote}
+  \end{define}
+  Opticが圏になることを示したから、それらの操作がLensのものと一致することを調べる。
+  \begin{prop}
+    Lensの合成と、Opticを経由したLensの合成は一致する。
+  \end{prop}
+  \begin{proof}
+    任意のLensから変換されたOptic\[\mor{\tuple{\tuple{id_S,get_{SA}},set_{SA}}}{(S,S)}{(A,A)}\]
+    \[\mor{\tuple{\tuple{id_T,get_{TS}},set_{TS}}}{(T,T)}{(S,S)}\]の合成を計算し、これをLensに変換する。
+
+    合成されたOpticにおける左側の射$l$は、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (3, -1) {$N\times S$};
+        \node (NMA) at (7, -1) {$N\times (M\times A)$};
+        \node (NMA') at (10, -1) {$(N\times M)\times A$};
+
+        \draw[->] (T) to node{$\tuple{id_T,get_{TS}}$}(NS);
+        \draw[->] (NS) to node{$N\times \tuple{id_S,get_{SA}}$}(NMA);
+        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
+      \end{tikzpicture}
+    \end{center}
+    \[l = a\circ(id_T\times\tuple{id_S,get_{SA}})\circ\tuple{id_T,get_{TS}}\]となるが、これは少し簡約できる。
+    \begin{align*}
+      &a\circ(id_T\times\tuple{id_S,get_{SA}})\circ\tuple{id_T,get_{TS}}\\
+      &=a\circ\tuple{id_T,\tuple{id_S,get_{SA}\circ get_{TS}}}&\text{(射の積の定義と対の分配則)}\\
+      &=a\circ\tuple{id_T,\tuple{get_{TS},get_{SA}\circ get_{TS}}}&\text{(射の対の分配則)}\\
+      &=\tuple{\tuple{id_T,get_{TS}},get_{SA}\circ get_{TS}}&\text{(結合子の定義)}\\
+    \end{align*}
+    合成されたOpticにおける右側の射$r$は、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (2, -1) {$N\times S$};
+        \node (NMA) at (5, -1) {$N\times (M\times A)$};
+        \node (NMA') at (9, -1) {$(N\times M)\times A$};
+
+        \draw[<-] (T) to node{$set_{TS}$}(NS);
+        \draw[<-] (NS) to node{$N\times set_{SA}$}(NMA);
+        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
+      \end{tikzpicture}
+    \end{center}
+    \[r = set_{TS}\circ\tuple{\pi_T,set_{SA}\circ\pi_{S\times A}}\circ a^{-1}\]となる。これは特に簡約できないが、元のLensの$set$の合成に類似しているため違和感は無い。
+    \[\tuple{l,r}:\arset{C}{T}{(T\times S)\times A}\times\arset{C}{(T\times S)\times A}{T}\]
+
+    次にこれをLensに復元する。命題\ref{prop-lens-is-optics}より、\[\mor{\pi_{A}\circ l=get_{SA}\circ get_{TS}}{T}{A}\]は明らかに定義\ref{def-comp-of-lens}の$get_{TA}$の定義と一致する。片方の\[\mor{\pi_{T\times S}\circ l=\tuple{id_T,get_{TS}}}{T}{T\times S}\]は$r$の$T\times S$側に合成すれば良いから、\[\mor{r\circ(\tuple{id_T,get_{TS}}\times A)}{T\times S}{T}\]
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (2, -1) {$T\times S$};
+        \node (NMA) at (5, -1) {$T\times (S\times A)$};
+        \node (NMA') at (9, -1) {$(T\times S)\times A$};
+        \node (NMA'') at (13, -1) {$T\times A$};
+
+        \draw[<-] (T) to node{$set_{TS}$}(NS);
+        \draw[<-] (NS) to node{$T\times set_{SA}$}(NMA);
+        \draw[<-] (NMA) to node{$a_{TSA}$}(NMA');
+        \draw[<-] (NMA') to node{$\tuple{id_T,get_{TS}}\times A$}(NMA'');
+      \end{tikzpicture}
+    \end{center}
+    となる。これが$set_{TA}$と一致するかはわかりにくいが、定義\ref{def-comp-of-lens}における$set_{TA}$の定義の図式を左右反転させたものと一致することが分かる。
+  \end{proof}
+  \subsection{Lawfull Optics}
+  LensやPrismの合成をOpticsによって一般化することができたが、それらの満たすべき制約についてもOpticsを用いて議論できる。
+  \section{Profunctor Optics}
 \end{document}
 ・TaPL
 ・私が書いた圏論入門
