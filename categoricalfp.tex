@@ -673,7 +673,7 @@
   ここでは直積型を用いて$S$の値が$A$の値を持つことを明示的に示したが、一般の場合ではそうは行かない。そのため$set,\ get$関数による等式で間接的に示す。
   \[\mor{\pi_A = get\circ set}{S\times A}{A}\]
   \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]
-  \[\mor{set\circ(set\times id_A) = put\circ(\pi_S\circ\pi_{S\times A}\times \pi_A)}{(S\times A)\times A}{S}\]
+  \[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
   １つ目の等式はある$A$の値に対して、$set$を用いてその値を$S$に入れ$get$で取り出した値が元の$A$と等しいことを示す。
   ２つ目は$S$から$get$で取り出した$A$の値を$S$に$set$した時、元の$S$と一致することを示している。
   ３つ目はある$S$に$A$を置き換えた時、その前の$A$が上書きされることを示している。
@@ -818,9 +818,27 @@
     対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticの集合を
     \[Optic_\cat{C}(S,S',A,A')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
     また、$\kappa_M(l,r)$となる$Optic_\cat{C}(S,S',A,A')$の元を、紛らわしくない場合に$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$と表記する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$\coend{C}{C} \arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
+        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
+        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
+        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
+
+        \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
+        \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
+        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A'}{S'}$}(FAGB);
+        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
   \end{define}
-  この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
+  この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{N\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
   \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
+
+  \begin{prop}
+    任意のOptics$\kappa_M\tuple{l,r}$と、$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\[\kappa_M\tuple{l,r} = \kappa_N\tuple{(f\otimes A)l,r(f^{-1}\otimes A)}\]である。また$f$は必ずしも同型射である必要はない。
+  \end{prop}
+
   次にOpticsがLens、Prismの一般化であることを示したいが、そのために余米田の補題が必要であるためここで示す。
 
   \begin{define}[余米田の補題]\label{def-coyoneda-lemma}
@@ -1054,12 +1072,19 @@
     対称モノイダル圏$\cat{C}$上の圏$\cat{Optic_C}$を以下のように定義する。
     \begin{quote}
 			\begin{mydescription}
-				\item[対象] 対象の集合を$\obj{Optic_C}=\obj{C}\times \obj{C}$とする。
-				\item[射] 任意の対象$(S,S'), (A,A')$に対する射集合を\[\arset{Optic_C}{(S,S')}{(A,A')}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}\]とする。
+				\item[対象] 対象の集合を$\obj{Optic_C}=\obj{C}\times \obj{C}$とする。これは単に圏$\cat{C}$の対象の組である。
+				\item[射] 任意の対象$(S,S'), (A,A')$に対する射集合を\[\arset{Optic_C}{(S,S')}{(A,A')}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}\]とする。射集合の元である射$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$はそのままOpticである。
 				\item[射の合成] 定義\ref{def-comp-of-optic}を射の合成とする。
-				\item[恒等射の存在] 定義\ref{def-identity-optic}を恒等射とする。
-				\item[結合律] 命題\ref{prop-associativity-of-optic}より成り立つ。
-				\item[単位元律] 命題\ref{prop-optic-has-identity}より成り立つ。
+				すなわち射{\scriptsize\[\mor{\circ}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times\coend{C}{N} \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を射の合成を行う写像とみなすということである。またこの写像は、ある対象$M,N$に対して
+        \[\tuple{l,r}\circ_{MN}\tuple{l',r'}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]
+        となるような操作だった。
+				\item[恒等射の存在] 定義\ref{def-identity-optic}を恒等射とする。これも任意の対象$(S,S')$に対して\[\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]を恒等射とみなすということである。
+				\item[結合律] 命題\ref{prop-associativity-of-optic}より、任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')},\ \mor{\tuple{l',r'}}{(T,T')}{(S,S')},\ \mor{\tuple{l'',r''}}{(R,R')}{(T,T')}$に対して、
+        \[(\tuple{l,r}\circ\tuple{l',r'})\circ\tuple{l'',r''}=\tuple{l,r}\circ(\tuple{l',r'}\circ\tuple{l'',r''})\]が成り立つ。
+				\item[単位元律] 命題\ref{prop-optic-has-identity}より、任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$に対して、
+        \[\tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}=\tuple{l,r}\]
+        \[\tuple{l,r}\circ\tuple{\lambda_S^{-1},\lambda_{S'}}=\tuple{l,r}\]
+        が成り立つ。
 			\end{mydescription}
 		\end{quote}
   \end{define}
@@ -1125,8 +1150,140 @@
     \end{center}
     となる。これが$set_{TA}$と一致するかはわかりにくいが、定義\ref{def-comp-of-lens}における$set_{TA}$の定義の図式を左右反転させたものと一致することが分かる。
   \end{proof}
-  \subsection{Lawfull Optics}
+  \subsection{Lawful Optics}
   LensやPrismの合成をOpticsによって一般化することができたが、それらの満たすべき制約についてもOpticsを用いて議論できる。
+  例えばLensにおいて、三つのレンズ則\[\mor{\pi_A = get\circ set}{S\times A}{A}\]
+  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]\[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
+  を与えたが、二つ目の等式はOpticと見なした時の左右の射の合成が恒等射になっている。一つ目は恒等射とはならないものの、$get$と$set$の合成が射影射として、$A$側については恒等となっている。そのため左右の射が互いに逆射になることが条件のように思える。そのため実際に逆射となると仮定しよう。すなわち次が成り立つ。
+  \[id_{S\times A} = \tuple{id_S,get}\circ set\]
+
+  しかしこの等式が実際に成り立つとすると、
+  \begin{align*}
+    id_{S\times A}&=\tuple{id_S,get}\circ set\\
+    &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
+    &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
+  \end{align*}
+  $id_{S\times A}$は$\pi_S$,$\pi_A$の射の対であり、$\tuple{set,\pi_A}$と等しいから$set = \pi_S$が成り立ってしまう。このような$set$は与えられた$A$の値を完全に廃棄し、$S$の値も全く変化させないということで、完全に非直感的な操作となってしまった。これにより厳密に逆射になることを制約に加えることはできないため、少し緩めたものを考える必要がある。
+
+  また、任意のOpticに対して逆射となるような操作を定義するには、Opticの合成と同じようにコエンドの普遍性を用いて行う必要がある。
+  \begin{define}[outside関数]
+    関数$\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}$をコエンドの普遍性によって定義する。任意の対象$M$に対する射
+    \[\mor{outside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]を任意の射$\mor{l}{S}{M\times A},\ \mor{r}{M\otimes A}{S}$に対して\[outside(l,r)=r\circ l\]と定義する。
+
+    次に$(\arset{C}{S}{S},outside)$が余楔であることを確認する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$\arset{C}{S}{S}$};
+        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}$};
+        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A}{S}$};
+        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A}{S}$};
+
+        \draw[<-] (FG) to node{$outside_M$}(FAGA);
+        \draw[<-] (FG) to node{$outside_N$}(FBGB);
+        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A}{S}$}(FAGB);
+        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+    任意の射$\mor{f}{N}{M},\ \mor{l}{S}{N\otimes A},\ \mor{r}{M\otimes A}{S}$に対して\[outside((f\otimes A)\circ l,r) = r\circ ((f\otimes A)\circ l)=(r\circ (f\otimes A))\circ l=outside(l,r\circ (f\otimes A))\]であるから確かに余楔である。よって\[\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]はコエンドの普遍性によって一意に定まる。
+  \end{define}
+  
+  \begin{define}[once、twice関数]
+    コエンド\[Optic^2_\cat{C}(S,S,A,A)=\coend{C\times C}{M,N}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{N\otimes A}\times\arset{C}{N\otimes A}{S}\]
+    に対して射$\mor{once,twice}{Optic_\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(S,S,A,A)}$を定義する。
+
+    任意の対象$M$に対して、
+    \begin{align*}
+      once_M(l,r) &= \tuple{l,id_{M\otimes A},r}\\
+      twice_M(l,r) &= \tuple{l,l\circ r,r}
+    \end{align*}
+    とすると、コエンドの普遍性より$once,twice$関数は一意に定まる。
+  \end{define}
+  また$Optic^2_\cat{C}(S,S,A,A)$のコエンドの普遍性により、任意の射\[\mor{l}{S}{M\otimes A},\ \mor{c}{M'\otimes A}{N\otimes A},\ \mor{r}{N'\otimes A}{S}\]\[\mor{f}{M'}{M}\ \mor{g}{N'}{N}\]に対して、
+  \begin{align*}
+    \tuple{(f\otimes A)\circ l,c,r}&=\tuple{l,c\circ(f\otimes A),r}\\
+    \tuple{l,c,r\circ(g\otimes A)} &= \tuple{l,(g\otimes A)\circ c,r}
+  \end{align*}
+  が成り立つ。
+  \begin{define}[lawful性]
+    あるOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$がlawfulであるとは、
+    \[outside(l,r)=id_S,\ once(l,r)=twice(l,r)\]を満たす時である。
+    すなわち\[r\circ l = id_S,\ \tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}\]である。
+  \end{define}
+  outside関数による制約は単なる逆射の定義の一部であるが、once関数、twice関数による制約がどのように緩められているかについて考える。\\
+
+  当然$\tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}$ならば$id_{M\otimes A}=l\circ r$が成り立つとは限らない。これらが単なる射集合の順序対であれば成り立つが、右辺左辺はコエンドの元である。これにより余楔の等式によってこの等式が構成されていた場合は、左右の$l,r$に干渉してしまうからである。
+
+  
+  % \begin{define}[inside関数]
+  %   関手$\functor{\arset{C}{M\otimes -}{M\otimes -}}{C^{op}\times C}{Set}$に対するコエンド$\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}$を用いて、ある$M$に対するある射$\mor{\phi}{M}{M}$を表現する。
+
+  %   これによってinside関数\[\mor{inside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}}\]を同様にコエンドの普遍性によって定義しよう。
+
+  %   任意の対象$M$に対して\[\mor{inside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{M\otimes A}{M\otimes A}}\]を
+  %   \[inside_M(l,r)=l\circ r\]とすると、コエンドの普遍性により$inside$関数が一意に定まる。
+  % \end{define}
+  % この二つの関数によって、定義\ref{def-lawful-optic}におけるlawful opticの等式は以下のように置き換えられる。
+  % \[outside(l,r)=id_S\]
+  % \[inside(l,r)=\phi\otimes A\]
+  % またコエンドの普遍性によれば自明であるが以下の命題が成り立つ。
+  % \begin{prop}
+  %   任意のOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$と$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\begin{align*}
+  %     inside(l,r)&=(f^{-1}\otimes A)\circ inside(l,r)\circ(f\otimes A)
+  %   \end{align*}
+  %   である。
+  % \end{prop}
+  % これによって、$inside(l,r)=\phi\otimes A$なる$\phi$の始域と終域は、$l,r$の始域、終域となる対象$M$と一致している必要性は無い。
+
+  % \begin{define}[lawful Optic]\label{def-lawful-optic}
+  %   あるOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$がlawfulであるとは、何らかの対象$M$と射$\mor{\phi}{M}{M}$が存在して
+  %   \[r\circ l = id_S\]
+  %   \[\tuple{l,id_A,r}\]が成り立つ時である。
+  % \end{define}
+  \begin{prop}[LensのLawful性]
+    レンズ則を満たすLens $(get,set)$に対して、対応するOptic $\tuple{\tuple{id_S,get},set}$はLawful性を満たす。
+  \end{prop}
+  \begin{proof}
+    Lawful性は逆射の関係と比べて、$l\circ r=id_{M\otimes A}$の条件が余楔の等式によって緩められている。そのため証明には$(-)\times A$の形の射に変形することが重要である。分かりやすい例で言えば三つ目のレンズ則
+    \[set\circ(set\times A) = set\circ (\pi_S\times A)\]が該当する。また、Lensにおける合成$l\circ r$においても、
+    \begin{align*}
+      \tuple{id_S,get}\circ set &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
+      &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
+      &= (set\times A)\circ\tuple{id_{S\times A},\pi_A}&\text{(射の積の定義)}\\
+    \end{align*}
+    が成り立つ。これによって、
+    \begin{align*}
+      &\tuple{\tuple{id_S,get},\tuple{id_S,get}\circ set, set}\\
+      &=\tuple{\tuple{id_S,get},(set\times A)\circ\tuple{id_{S\times A},\pi_A}, set}\\
+      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(set\times A)}&\text{(余楔の定義)}\\
+      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(\pi_S\times A)}&\text{(レンズ則)}\\
+      &=\tuple{\tuple{id_S,get},(\pi_S\times A)\circ\tuple{id_{S\times A},\pi_A}, set}&\text{(余楔の定義)}\\
+      &=\tuple{\tuple{id_S,get},\tuple{\pi_S,\pi_A}, set}&\text{(射の積の定義)}\\
+      &=\tuple{\tuple{id_S,get},id_{S\times A}, set}&\text{(積の普遍性)}
+    \end{align*}
+    となり、Lens則を満たす場合はLawful性を満たすことが分かった。
+  \end{proof}
+  \begin{prop}[lawful性の合成における閉性]
+    二つのLawful Optic \[\mor{\tuple{l,r}}{(S,S)}{(A,A)},\ \mor{\tuple{l',r'}}{(T,T)}{(S,S)}\]の合成\[\mor{\tuple{l',r'}\circ\tuple{l,r}}{(T,T)}{(A,A)}\]もまたLawfulである。
+  \end{prop}
+  \begin{proof}
+    \[\tuple{l',r'}\circ\tuple{l,r}=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ r'\circ(N\otimes r)\circ a}\]であったから、
+    \[r'\circ(N\otimes r)\circ a\circ a^{-1}\circ(N\otimes l)\circ l'=id_T\]
+    \begin{alignat*}{2}
+      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
+      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
+    \end{alignat*}
+    の二つを示せば良い。前者は自明であるが、後者の証明は面倒である。
+    まず$Optic^2$同士の合成\[\mor{\circ}{Optic^2_\cat{C}(T,T,S,S)\times Optic^2\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(T,T,A,A)}\]を定義しよう。
+    これは\[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]として
+    \[\circ_{MN} (\tuple{l',c',r'},\tuple{l,c,r}) =\tuple{f_l\circ l',f_l\circ c'\circ g_r, r'\circ g_r}\]を任意の対象$M,N$に対して定義しコエンドの普遍性より、実際にOptic間の写像となる。
+    またこの時明らかに\[\circ (twice(l',r'),twice(l,r)) = twice(\tuple{l',r'}\circ\tuple{l,r})\]である。ここで左の引数をonce関数に置き換えると
+    \begin{align*}
+      \circ (once(l',r'),twice(l,r)) &=  \tuple{f_l\circ l',f_l\circ g_r, r'\circ g_r}\\
+      &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes l)\circ(N\otimes r)\circ a,\ r'\circ(N\otimes r)\circ a}\\
+      &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes (l\circ r))\circ a,\ r'\circ(N\otimes r)\circ a}
+    \end{align*}
+
+  \end{proof}
   \section{Profunctor Optics}
 \end{document}
 ・TaPL
@@ -1147,3 +1304,17 @@ https://github.com/BartoszMilewski/Publications/blob/master/TheDaoOfFP/DaoFP.pdf
 総合報告まとめ
 
 int型はint値の集合
+
+
+todo
+
+グローバル
+・元の対を\tupleではなく()で表す
+
+ローカル
+・prismの第三法則を追加
+・lens則、prism則に名前をつける
+・関数名の字体を揃える
+・文章中ではレンズ、プリズムのように表記する
+・コエンド、余積の証明にSetを用いる。
+・SetとHがゴチャゴチャになっている
