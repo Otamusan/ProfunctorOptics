@@ -1272,31 +1272,108 @@
       \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
       =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
     \end{alignat*}
-    の二つを示せば良い。前者は自明であるが、後者の証明は面倒である。
-    まず$Optic^2$同士の合成\[\mor{\circ}{Optic^2_\cat{C}(T,T,S,S)\times Optic^2\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(T,T,A,A)}\]を定義しよう。
-    これは\[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]として
-    \[\circ_{MN} (\tuple{l',c',r'},\tuple{l,c,r}) =\tuple{f_l\circ l',f_l\circ c'\circ g_r, r'\circ g_r}\]を任意の対象$M,N$に対して定義しコエンドの普遍性より、実際にOptic間の写像となる。
-    またこの時明らかに\[\circ (twice(l',r'),twice(l,r)) = twice(\tuple{l',r'}\circ\tuple{l,r})\]である。ここで左の引数をonce関数に置き換えると
-    \begin{align*}
-      \circ (once(l',r'),twice(l,r)) &=  \tuple{f_l\circ l',f_l\circ g_r, r'\circ g_r}\\
-      &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes l)\circ(N\otimes r)\circ a,\ r'\circ(N\otimes r)\circ a}\\
-      &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes (l\circ r))\circ a,\ r'\circ(N\otimes r)\circ a}
-    \end{align*}
+    の二つを示せば良い。ただし前者は自明であるため省略する。
+    \[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]とすると、後者の等式は\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l',f_l\circ id_{(N\otimes M)\otimes A}\circ g_r, r'\circ g_r}\]と表せる。
+    余楔の等式を用いて\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]が証明できたから、この等式においても余楔の等式が成り立てば良い。すなわち\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]である。もし$\phi\otimes S$が$f_l$より外側に来れば、この組全体の余楔の等式により、$l',r'$に対しても余楔の等式が成り立つ。よって\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]を示せば良い。特に前者を図式で表すと以下のようになる。
 
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (n) at (-2, 0) {$N$};
+        \node (n') at (-2, -2) {$N'$};
+        \draw[->] (n) to node{$\phi$}(n');
+
+        \node (ns) at (0, 0) {$N\otimes S$};
+        \node (n's) at (0, -2) {$N'\otimes S$};
+        \draw[->] (ns) to node{$\phi\otimes S$}(n's);
+
+
+        \node (nma) at (3, 0) {$N\otimes (M\otimes A)$};
+        \node (n'ma) at (3, -2) {$N'\otimes (M\otimes A)$};
+        \draw[->] (nma) to node{\scriptsize$\phi\otimes(M\otimes A)$}(n'ma);
+
+
+        \node (nma2) at (6, 0) {$(N\otimes M)\otimes A$};
+        \node (n'ma2) at (6, -2) {$(N'\otimes M)\otimes A$};
+        \draw[->] (nma2) to node{\scriptsize$(\phi\otimes M)\otimes A$}(n'ma2);
+        \draw[->] (ns) to node{$N\otimes l$}(nma);
+        \draw[->] (n's) to node{$N'\otimes l$}(n'ma);
+        \draw[->] (nma) to node{$a_{NMA}$}(nma2);
+        \draw[->] (n'ma) to node{$a_{N'MA}$}(n'ma2);
+      \end{tikzpicture}
+    \end{center}
+    左の正方形はモノイダル積$\otimes$の双関手性によって可換になり、右の正方形は結合子$a$の自然性によって可換になるから、全体が可換になり、\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]が成り立つ。同様に\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]も成り立つ。これと余楔の等式によって\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]もまた成り立って、同様に\[\tuple{f_l \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r\circ(\phi\otimes S)} = \tuple{f_l\circ l',f_l \circ(\phi\otimes S)\circ l'\circ r'\circ g_r, r'\circ g_r}\]もまた成り立つから、\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]と同様に余楔の等式を利用して\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l', f_l\circ g_r, r'\circ g_r}\]というように少し簡約できた。ここからの証明も\[\tuple{l,l\circ r, r} = \tuple{l, id_{M\otimes A}, r}\]の証明と同様の操作が行えることを自然性やら関手性で示せば証明できる。
+    よって    \begin{alignat*}{2}
+      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
+      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
+    \end{alignat*}が成り立ち、$\tuple{l',r'}\circ\tuple{l,r}$はLawfulである。
+    % まず$Optic^2$同士の合成\[\mor{\circ}{Optic^2_\cat{C}(T,T,S,S)\times Optic^2\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(T,T,A,A)}\]を定義しよう。
+    % これは\[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]として
+    % \[\circ_{MN} (\tuple{l',c',r'},\tuple{l,c,r}) =\tuple{f_l\circ l',f_l\circ c'\circ g_r, r'\circ g_r}\]を任意の対象$M,N$に対して定義しコエンドの普遍性より、実際にOptic間の写像となる。
+    % またこの時明らかに\[\circ (twice(l',r'),twice(l,r)) = twice(\tuple{l',r'}\circ\tuple{l,r})\]である。ここで左の引数をonce関数に置き換えると
+    % \begin{align*}
+    %   \circ (once(l',r'),twice(l,r)) &=  \tuple{f_l\circ l',f_l\circ g_r, r'\circ g_r}\\
+    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes l)\circ(N\otimes r)\circ a,\ r'\circ(N\otimes r)\circ a}\\
+    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes (l\circ r))\circ a,\ r'\circ(N\otimes r)\circ a}
+    % \end{align*}
+    
+  \end{proof}
+  \begin{prop}[恒等Opticのlawful性]  
+    任意の対象$(S,S)$に対する恒等Optic$\tuple{\lambda_S^{-1},\lambda_S}$はLawfulである。
+  \end{prop}
+  \begin{proof}
+    $\lambda_S^{-1}$と$\lambda_S^{-1}$は互いに逆射であるから明らかにlawfulである。
   \end{proof}
   \section{Profunctor Optics}
+  ProfunctorはDistributor、Relatorなどとも呼ばれている概念で、二項関係の圏論的な一般化である。
+
+  まず集合$A,B$の間の二項関係$R$は$A\times B$の部分集合であるから、$2 = \{0,1\}$として特性関数\[\mor{R}{A\times B}{2}\]と表せる。
+
+  また集合$2$は、ある集合$A$の二つの元を取ったときに、二つの関係は等しいか等しくないかの情報しか無く、$2$の元が二つであるのはこの情報を表すためであると考えることもできる。
+
+  つまり二項関係では二つの集合の垣根を超えて、等しいか等しくないかの関係付けを行なっているとみなせる。これを圏に一般化しようとすると、二つの対象の間の関係は集合の圏に属する射集合で表されるから、集合$2$の代わりに圏$\cat{Set}$を使うのが望ましい。よってProfunctorは以下のように定義される。
+
+  % 集合$A,B$の間の二項関係$R$が$A$から$B$への写像であるとは、以下の二つの条件を満たす時である。
+  % \begin{quote}
+  %   \begin{mydescription}
+  %     \item[左全域性] $A$の任意の元$a$に対して$B$のある元$b$が存在し$aRb$である。
+  %     \item[右一意性] $A$の任意の元$a$に対して、$aRb$かつ$aRb'$なる$b,b'$が存在する時$b = b'$である。 
+  %   \end{mydescription}
+  % \end{quote}
+  % 写像$\mor{f}{A}{B}$の視点で二項関係$R$を見ると、写像と違って任意の$a$に対して、必ずしも対応する$B$の元が存在する必要はなく、かつ対応する$B$の元は必ずしも一意である必要がないということである。
+  % この性質から二項関係$R$は$2 = \{0,1\}$として\[\mor{R}{A}{2^{B}}\]と表せる。またここでの$2^{B}$は特性関数の集合であるから、$B$の冪集合と同型である。
+
+  \begin{define}[Profunctor]
+    圏$\cat{A,B}$において、関手$\functor{F}{A^{op}\times B}{Set}$をProfunctorとする。
+    
+    また$\cat{Cat}$はカルテジアン閉圏であるから、$\functor{F}{A^{op}\times B}{Set}$と$\functor{F}{B}{\funccat{A^{op}}{Set}}$と同一視できる。
+  \end{define}
+  また双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\otimes C}{Set}$は明らかにProfunctor\ $\profunctor{\arset{C}{-}{-}}{C}{C}$である。
+  \begin{define}[Profunctorの合成]
+    Profunctor\ $\profunctor{F}{A}{B},\ \profunctor{G}{B}{C}$の合成
+    $\profunctor{G\diamond F}{A}{C}$を
+    \[(G\diamond F)(A,C) = \coend{B}{B} G(B, C)\times F(A, B)\]と定義する。
+  \end{define}
+  集合の圏においてコエンドは添字付けられた余積のように働いたから、$(G\diamond F)(A,C)$は大まかには$\cat{B}$の任意の対象$B$に対する$G(B,C)$と$F(A,B)$の元の組をすべて含むような集合とみなすことができる。
+  \begin{prop}[Profunctorの結合律]
+    \[(H\diamond G)\diamond F \cong H\diamond(G\diamond F)\]
+  \end{prop}
+  \begin{prop}[Profunctorの単位元律]
+    \[F\diamond \arset{A}{-}{-} \cong F,\ \arset{B}{-}{-}\diamond F\cong F\]
+  \end{prop}
 \end{document}
 ・TaPL
 ・私が書いた圏論入門
 ・すごいH本
 ・https://hackage.haskell.org/
 ・basic concept of enriched category theory
+・distributer at works
+
 
 https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf
 https://hackage.haskell.org/package/optics-0.4.2/docs
 https://arxiv.org/pdf/2001.07488.pdf
 https://arxiv.org/pdf/1809.00738.pdf
-https://arxiv.org/pdf/1501.02503.pdf　(coend calculus)
+https://arxiv.org/pdf/1501.02503.pdf (coend calculus)
 https://bartoszmilewski.com/2017/03/29/ends-and-coends/
 https://github.com/BartoszMilewski/Publications/blob/master/TheDaoOfFP/DaoFP.pdf
 タイトル　圏論側からの方向性　圏論の概念
