@@ -29,7 +29,7 @@
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
-  \title{Optics概論}
+  \title{Profunctor Opticsの理論と実装}
   \author{https://otamusan.github.io/FPandCategory/categoricalfp.pdf}
   \maketitle
 	\tableofcontents
@@ -186,6 +186,8 @@
     -- >>> div10' 0
     -- Nothing
   \end{lstlisting}
+
+
   という関数を定義する。これは零除算が発生する場合\pr{Nothing}を返し、そうでない場合は\pr{Just}によって計算結果を\pr{Maybe}に包んで返している。
 
   これによって、\pr{Maybe Float}の値を用いて計算を行うときは、必ず\pr{Nothing}と\pr{Just}の場合分けが必要になり、他の言語でいうNullチェックが必要なことを型レベルで示していることになる。
@@ -1321,9 +1323,64 @@
     任意の対象$(S,S)$に対する恒等Optic$\tuple{\lambda_S^{-1},\lambda_S}$はLawfulである。
   \end{prop}
   \begin{proof}
-    $\lambda_S^{-1}$と$\lambda_S^{-1}$は互いに逆射であるから明らかにlawfulである。
+    $\lambda_S$と$\lambda_S^{-1}$は互いに逆射であるから明らかにlawfulである。
   \end{proof}
   \section{Profunctor Optics}
+  \subsection{超自然変換}
+  評価射$\mor{ev_{A,B}}{A^B\times B}{A}$は$A$に対して自然であったが、$B$に対してはドメイン側に$B$が二回出ているため自然性は定義できず、代わりに超自然性を使う必要があると説明したがそれを厳密に議論する。
+
+  \begin{define}
+    関手$\functor{F}{C^{op}\times C}{Set}$に対して対象$X$、$\mor{\mu_A}{X}{T(A,A)}$が楔$(X,\mu)$である時、$\mu$を超自然変換と呼ぶ。
+    また対象$X$、$\mor{\mu_A}{T(A,A)}{X}$が余楔$(X,\mu)$である時も同様に超自然変換と呼ぶ。
+  \end{define}
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$X$};
+      \node (FAGA) at (3, 0) {$T(A,A)$};
+      \node (FBGB) at (0, -2) {$T(B,B)$};
+      \node (FAGB) at (3, -2) {$T(A,B)$};
+
+      \draw[->] (FG) to node{$\mu_A$}(FAGA);
+      \draw[->] (FG) to node{$\mu_B$}(FBGB);
+      \draw[->] (FAGA) to node{$T(A,f)$}(FAGB);
+      \draw[->] (FBGB) to node{$T(f,B)$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  自然変換がエンドで定義されることから、自然変換の成分を元と見なした時これらは超自然性を持つ。
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$1$};
+      \node (FAGA) at (3, 0) {$\arset{D}{FA}{GA}$};
+      \node (FBGB) at (0, -2) {$\arset{D}{FB}{GB}$};
+      \node (FAGB) at (3, -2) {$\arset{D}{FA}{GB}$};
+
+      \draw[->] (FG) to node{$\alpha_A$}(FAGA);
+      \draw[->] (FG) to node{$\alpha_B$}(FBGB);
+      \draw[->] (FAGA) to node{$\arset{D}{FA}{Gf}$}(FAGB);
+      \draw[->] (FBGB) to node{$\arset{D}{Ff}{GB}$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  \begin{prop}[評価射の超自然性]
+    圏$\cat{Set}$における評価射$\mor{ev_{A,B}}{\arset{Set}{B}{A}\times B}{A}$は$A$に対して自然であったが、$B$に対しては超自然になる。
+  \end{prop}
+  \begin{proof}
+    任意の射$\mor{g}{B'}{A}$、$\mor{f}{B}{B'}$、$B$の任意の元$b$に対して、\[ev_{A,B'}\circ\tuple{g,f(b)} = (g\circ f)(b)=ev_{A,B}\circ\tuple{g\circ f,b}\]であるから、$(A,ev_A)$は明らかに余楔となる。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$A$};
+        \node (FAGA) at (4, 0) {$\arset{Set}{B}{A}\times B$};
+        \node (FBGB) at (0, -2) {$\arset{Set}{B'}{A}\times B'$};
+        \node (FAGB) at (4, -2) {$\arset{Set}{B'}{A}\times B$};
+  
+        \draw[<-] (FG) to node{$ev_{A,B}$}(FAGA);
+        \draw[<-] (FG) to node[swap]{$ev_{A,B'}$}(FBGB);
+        \draw[<-] (FAGA) to node{$\arset{Set}{f}{A}\times B$}(FAGB);
+        \draw[<-] (FBGB) to node[swap]{$\arset{Set}{B'}{A}\times f$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+  \end{proof}
+  このコエンドの図式は余米田の補題で示したものと非常に似ているが、実際に$F=Id_{\cat{Set}}$とすると明らかに\[A\cong\coend{C}{C}\arsetr{Set}{C}{A}\times C\]が成り立つ。つまり余楔$(A,ev_A)$はコエンドでもある。
+  \subsection{Profunctor}
   ProfunctorはDistributor、Relatorなどとも呼ばれている概念で、二項関係の圏論的な一般化である。
 
   まず集合$A,B$の間の二項関係$R$は$A\times B$の部分集合であるから、$2 = \{0,1\}$として特性関数\[\mor{R}{A\times B}{2}\]と表せる。
@@ -1347,7 +1404,7 @@
     
     また$\cat{Cat}$はカルテジアン閉圏であるから、$\functor{F}{A^{op}\times B}{Set}$と$\functor{F}{B}{\funccat{A^{op}}{Set}}$と同一視できる。
   \end{define}
-  また双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\otimes C}{Set}$は明らかにProfunctor\ $\profunctor{\arset{C}{-}{-}}{C}{C}$である。
+  また双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$は明らかにProfunctor\ $\profunctor{\arset{C}{-}{-}}{C}{C}$である。
   \begin{define}[Profunctorの合成]
     Profunctor\ $\profunctor{F}{A}{B},\ \profunctor{G}{B}{C}$の合成
     $\profunctor{G\diamond F}{A}{C}$を
@@ -1360,6 +1417,65 @@
   \begin{prop}[Profunctorの単位元律]
     \[F\diamond \arset{A}{-}{-} \cong F,\ \arset{B}{-}{-}\diamond F\cong F\]
   \end{prop}
+
+  またHaskellにおける\pr{Profunctor}型クラスのインスタンス\pr{f}は$\functor{f}{H^{op}\times H}{H}$であるから
+  \begin{lstlisting}
+    class Profunctor p where
+      dimap :: (a -> b) -> (c -> d) -> p b c -> p a d
+      dimap f g = lmap f . rmap g
+  \end{lstlisting}
+  と定義できる。またProfunctor同士の合成は
+  \begin{lstlisting}
+    data CompRaw q p a c b d = CompRaw (q b c, p a d)
+    newtype Comp q p a c = Comp (Coend (CompRaw q p a c))
+
+    (<>) :: (Profunctor p , Profunctor q) =>
+     q b c -> p a b -> Comp q p a c
+    (<>) q p = Comp (Coend (CompRaw (q , p)))
+
+    instance (Profunctor p, Profunctor q) => Profunctor(Comp q p) where
+      dimap :: (Profunctor p, Profunctor q) =>
+       (a -> b) -> (c -> d) -> Comp q p b c -> Comp q p a d
+      dimap f g (Comp(Coend (CompRaw (q, p)))) = 
+      Comp(Coend(CompRaw (rmap g q, lmap f p)))
+  \end{lstlisting}
+  ProfunctorによってどのようにOpticsが一般化されるかを紹介するために次の命題を予め載せる。
+  \begin{prop}[Opticsの表現可能定理]
+    \[\cend{Tamb}{P}\arset{Set}{P(A,A')}{P(S,S')}\cong Optics_\cat{C}(S,S',A,A')\]
+  \end{prop}
+  $P$が属する圏$\cat{Tamb}$は丹原加群の圏であり、$P$は特殊なProfunctorである。
+  $P$についてもう少し説明すると、
+  まずモノイダル積関手$\mor{M\otimes -}{C}{C}$における射関数は\[\mor{M\otimes -}{\arset{C}{A}{A'}}{\arset{C}{M\otimes A}{M\otimes A'}}\]というような射であるが、これを双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$から拡張して\[\mor{\zeta_{A,A',M}}{P(A,A')}{P(M\otimes A, M\otimes A')}\]となるような射を考える。またモノイダル積関手の射関数では、射関数の自然性から$A,A'$に対して自然であったから$\zeta$にも$A,A'$に対する自然性を課す。さらに射$\mor{f}{M}{N}$に対してモノイダル積関手の間の自然変換$\nat{f\otimes -}{M\otimes -}{N\otimes -}$を考えることができたから、その成分に該当する$\zeta$にも$M$に対する自然性を課したい。しかし$P(M\otimes A,M\otimes A')$や$P(N\otimes A, N\otimes A')$は射集合ではないから代わりに超自然性を課す。
+
+  
+
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$P(A,A')$};
+      \node (FAGA) at (5, 0) {$P(M\otimes A,M\otimes A')$};
+      \node (FBGB) at (0, -2) {$P(N\otimes A,N\otimes A')$};
+      \node (FAGB) at (5, -2) {$P(M\otimes A,N\otimes A')$};
+
+      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FAGA);
+      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FBGB);
+      \draw[->] (FAGA) to node{$P(id,f\otimes A')$}(FAGB);
+      \draw[->] (FBGB) to node{$P(f\otimes A,id)$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  \begin{define}[丹原加群の圏]
+    対称モノイダル圏$\cat{C}$に対する圏$\cat{Tamb}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象] Profunctor\ $\profunctor{P}{C}{C}$と自然変換$\zeta$の組$(P,\zeta)$
+				\item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
+          
+				\item[射の合成]
+				\item[恒等射の存在]
+				\item[結合律]
+				\item[単位元律]
+			\end{mydescription}
+		\end{quote}
+  \end{define}
 \end{document}
 ・TaPL
 ・私が書いた圏論入門
@@ -1376,12 +1492,12 @@ https://arxiv.org/pdf/1809.00738.pdf
 https://arxiv.org/pdf/1501.02503.pdf (coend calculus)
 https://bartoszmilewski.com/2017/03/29/ends-and-coends/
 https://github.com/BartoszMilewski/Publications/blob/master/TheDaoOfFP/DaoFP.pdf
+dont fear profunctor optics
 タイトル　圏論側からの方向性　圏論の概念
 現在だとデザイン
 総合報告まとめ
 
 int型はint値の集合
-
 
 todo
 
