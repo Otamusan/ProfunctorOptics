@@ -187,6 +187,28 @@
       \begin{center}
         \begin{tikzpicture}[auto]
           \node (P) at (0, 0) {$P$};
+          \node (TP) at (2, 0) {$\Theta P$};
+          \node (TP2) at (0, -2) {$\Theta P$};
+          \node (TTP) at (2, -2) {$\Theta(\Theta P)$};
+          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
+          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP2);
+          \draw[double,double equal sign distance,-implies] (TP) to node{$\Theta \zeta$}(TTP);
+          \draw[double,double equal sign distance,-implies] (TP2) to node{$\delta_P$}(TTP);
+    
+          \node (P) at (4, 0) {$P$};
+          \node (TP) at (6, 0) {$\Theta P$};
+          \node (P2) at (6, -2) {$P$};
+          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
+          \draw[double,double equal sign distance,-implies] (TP) to node{$\epsilon$}(P2);
+          \draw[double,double equal sign distance] (P) to(P2);
+        \end{tikzpicture}
+      \end{center}
+      \item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
+      \[\Theta\alpha\cdot\zeta = \mu\cdot\alpha\]を満たすような$\nat{\alpha}{P}{Q}$とする。
+
+      \begin{center}
+        \begin{tikzpicture}[auto]
+          \node (P) at (0, 0) {$P$};
           \node (Q) at (0, -2) {$Q$};
           \node (TP) at (2, 0) {$\Theta P$};
           \node (TQ) at (2, -2) {$\Theta Q$};
@@ -202,27 +224,6 @@
           \draw[double,double equal sign distance,-implies] (P) to node{$\alpha$}(Q);
           \node (cattam) at (4, 1) {$\cat{Tamb}$};
 
-        \end{tikzpicture}
-      \end{center}
-      \item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
-      \[\Theta\alpha\cdot\zeta = \mu\cdot\alpha\]を満たすような$\nat{\alpha}{P}{Q}$とする。
-      \begin{center}
-        \begin{tikzpicture}[auto]
-          \node (P) at (0, 0) {$P$};
-          \node (TP) at (2, 0) {$\Theta P$};
-          \node (TP2) at (0, -2) {$\Theta P$};
-          \node (TTP) at (2, -2) {$\Theta(\Theta P)$};
-          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
-          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP2);
-          \draw[double,double equal sign distance,-implies] (TP) to node{$\Theta \zeta$}(TTP);
-          \draw[double,double equal sign distance,-implies] (TP2) to node{$\delta_P$}(TTP);
-    
-          \node (P) at (4, 0) {$P$};
-          \node (TP) at (6, 0) {$\Theta P$};
-          \node (P2) at (6, -2) {$P$};
-          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
-          \draw[double,double equal sign distance,-implies] (TP) to node{$\epsilon$}(P2);
-          \draw[double,double equal sign distance] (P) to(P2);
         \end{tikzpicture}
       \end{center}
     \end{mydescription}
@@ -367,5 +368,14 @@
         であるから$(\epsilon\circ U)\cdot(U\circ\eta) = ID_U$となる。
       \end{mydescription}
     \end{quote}
+    よって$U\dashv F$となる。
   \end{prop}
+  \begin{prop}
+    任意のProfunctor $\profunctor{Q}{C}{C}$と丹原加群$(P,\zeta)$に対して、\[\arset{Prof}{P}{Q}\cong\arset{Tamb}{(P,\zeta)}{(Q,\delta_Q)}\]であり、$Q,(P,\zeta)$に対して自然。
+  \end{prop}
+  \begin{proof}
+    $\cat{Tamb} = \cat{EM}(\Theta)$であったから、$\cat{Tamb}$に対しても自由忘却随伴が存在し\[\arset{Prof}{UP}{Q}\cong\arset{Tamb}{P}{FQ}\]が自然同型となる。対象を適切に設定すれば上の同型が成り立つ。
+  \end{proof}
+  \subsection{二重米田の補題}
+  
 \end{document}

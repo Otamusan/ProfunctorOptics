@@ -1,0 +1,140 @@
+\documentclass[uplatex,dvipdfmx]{jsarticle}
+\usepackage{listings,jvlisting}
+\usepackage{color}
+\usepackage{xr}
+
+\lstset{
+  backgroundcolor=\color[rgb]{0.9,0.9,0.9},
+  frame=single,
+  basicstyle=\ttfamily
+}
+\makeatletter
+
+\newcommand{\pr}[1]{\colorbox[rgb]{0.9,0.9,0.9}{\lstinline{#1}}}
+\newcommand{\functype}[2]{\pr{#1 -> #2}}
+\newcommand{\refcti}[1]{[CTI]\ref{#1}}
+\newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
+\input{../categoryTheoryIntro/preemble.tex}
+\begin{document}
+  \title{Profunctorの表現定理の仮まとめ2}
+  \maketitle
+  \begin{prop}
+    対象$A,A',S,S'$からOptic $\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$を取る操作はProfunctorである。
+  \end{prop}
+  \begin{proof}
+    $\Phi((A,A'),(S,S'))=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$とする。Hom関手の定義より、$A,S'$に対して共変、$A',S$に対して反変であるから、\[\functor{\Phi}{(C\times C^{op})\times (C^{op}\times C)}{Set}\]と表せる。任意の圏$\cat{A,B}$に対して$(\cat{A}\times \cat{B})^{op}\cong \cat{A}^{op}\times \cat{B}^{op}$であるから、\[\functor{\Phi}{(C^{op}\times C)^{op}\times (C^{op}\times C)}{Set}\]とも表すことができ、これはProfunctor\[\profunctor{\Phi}{C^{op}\times C}{C^{op}\times C}\]である。
+  \end{proof}
+  \begin{define}[モナド]
+    関手$\functor{M}{C}{C}$に対するモナド$(M,\eta, \mu)$を以下の要素で構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[乗算子] 自然変換$\nat{\eta}{Id_C}{M}$
+        \item[単位子] 自然変換$\nat{\mu}{M\circ M}{M}$
+        \item[結合則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (3, -2) {$M$};
+            \node (ww) at (3, 0) {$M\circ M$};
+            \node (ww2) at (0, -2) {$M\circ M$};
+            \node (www) at (0, 0) {$M\circ M\circ M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\eta$}(w);
+            \draw[double,double equal sign distance,-implies] (ww2) to node{$\eta$}(w);
+            \draw[double,double equal sign distance,-implies] (www) to node{$M\circ \mu$}(ww);
+            \draw[double,double equal sign distance,-implies] (www) to node{$\mu\circ W$}(ww2);
+          \end{tikzpicture}
+        \end{center}
+        \item[単位則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$M$};
+            
+            \node (ww) at (0, -2) {$M\circ M$};
+            \node (w2) at (-2, -2) {$M$};
+            \node (w3) at (2, -2) {$M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (w2) to node{$M\circ\eta$}(ww);            
+            \draw[double,double equal sign distance,-implies] (w3) to node[swap]{$\eta\circ M$}(ww);
+
+            \draw[double,double equal sign distance] (w) to (w2);
+            \draw[double,double equal sign distance] (w) to (w3);
+
+          \end{tikzpicture}
+        \end{center}      
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  このモナドの定義における関手をProfunctorに置き換える。
+  \begin{define}[プロモナド]
+    Profunctor $\profunctor{M}{C}{C}$に対するモナド$(M,\eta, \mu)$を以下の要素で構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[乗算子] 自然変換$\nat{\mu}{M\diamond M}{M}$
+        \item[単位子] 自然変換$\nat{\eta}{\arset{C}{-}{-}}{M}$
+        \item[結合則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (3, -2) {$M$};
+            \node (ww) at (3, 0) {$M\diamond M$};
+            \node (ww2) at (0, -2) {$M\diamond M$};
+            \node (www) at (0, 0) {$M\diamond M\diamond M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (ww2) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (www) to node{$M\diamond \mu$}(ww);
+            \draw[double,double equal sign distance,-implies] (www) to node{$\mu\diamond W$}(ww2);
+          \end{tikzpicture}
+        \end{center}
+        \item[単位則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$M$};
+            
+            \node (ww) at (0, -2) {$M\diamond M$};
+            \node (w2) at (-2, -2) {$M$};
+            \node (w3) at (2, -2) {$M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (w2) to node{$M\diamond\eta$}(ww);            
+            \draw[double,double equal sign distance,-implies] (w3) to node[swap]{$\eta\diamond M$}(ww);
+
+            \draw[double,double equal sign distance] (w) to (w2);
+            \draw[double,double equal sign distance] (w) to (w3);
+
+          \end{tikzpicture}
+        \end{center}      
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  \begin{prop}
+    $\profunctor{\Phi}{C^{op}\times C}{C^{op}\times C}$はプロモナドである。
+  \end{prop}
+  \begin{proof}
+    \begin{quote}~
+      \begin{mydescription}
+        \item[乗算子]まず\[\Phi\diamond\Phi((A,A'),(T,T')) = \coend{C}{S,S'}(\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S})\times(\coend{C}{N}\arset{C}{T}{N\otimes S}\times \arset{C}{N\otimes A'}{S})\]であるが、フビニの定理と積のコエンドの保存より、
+        \[\Phi\diamond\Phi((A,A'),(T,T')) \cong \coend{C}{S,S',M,N}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S}\times \arset{C}{T}{N\otimes S}\times \arset{C}{N\otimes A'}{S}\]が成り立つ。
+
+        まず$\Phi\diamond\Phi((A,A'),(T,T'))$の任意の元$\tuple{l,  r, l', r'}$を$\tuple{N\otimes l, N\otimes r, l', r'}$へ写すような操作を考える。すると射関数の自然性と双モノイダル積の関手性から、式中のすべての対象に対して自然になる。
+
+        次に余米田の補題を$S,S'$に対して適用すると、
+        \[\tuple{(N\otimes l)\circ l', r'\circ (N\otimes r)} : \coend{C}{M,N}\arset{C}{T}{N\otimes(M\otimes A)}\times \arset{C}{N\otimes(M\otimes A')}{T'}\]となり、モノイダル積の結合子とフビニの定理から
+        \[\tuple{a^{-1}\circ(N\otimes l)\circ l', r'\circ (N\otimes r)\circ a} : \coend{C}{P}\arset{C}{T}{P\otimes A}\times \arset{C}{P\otimes A'}{T'}\]が得られる。
+        これらを合成して単位子を\[\eta_{(A,A'),(T,T')}(l,  r, l', r') = \tuple{a^{-1}\circ(N\otimes l)\circ l', r'\circ (N\otimes r)\circ a}\]と定義する。またこれらの操作は$A,A',T,T'$に対して自然であるから$\eta$も自然である。
+        \item[単位子] 
+        自然変換$\nat{\eta}{\arset{C^{op}\times C}{-}{-}}{\Phi}$の任意の対象$(A,A'),(S,S')$に対する成分\[\mor{\eta_{(A,A'),(S,S')}}{\arset{C^{op}\times C}{(A,A')}{(S,S')}}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S}}\]を任意の射$\mor{f}{S}{A},\ \mor{g}{A}{S}$とモノイダル積の単位子に対して\[\eta_{(A,A'),(S,S')}(f,g) = \kappa_I(\lambda_A^{-1}\circ f,g\circ\lambda_{A'})\]と定義する。
+        また$\lambda$の自然性より$\eta$も自然である。
+        \item[結合則] Opticの結合則と同様に示せる。
+        \item[単位則] Opticの単位元則と同様に示せる。
+      \end{mydescription}
+    \end{quote}
+  \end{proof}
+  \begin{prop}[二重米田]
+    \[\arset{C}{A}{B}\cong\cend{\funccat{C}{Set}}{F}\arset{Set}{FA}{FB}\]であり、$A,B$に対して自然。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \cend{\funccat{C}{Set}}{F}\arset{Set}{FA}{FB}
+      &\cong\cend{\funccat{C}{Set}}{F}\arset{Set}{\arset{\funccat{C}{Set}}{\arset{C}{A}{-}}{F}}{\arset{\funccat{C}{Set}}{\arset{C}{B}{-}}{F}}&\text{(米田の補題)}\\
+      &\cong\arset{\funccat{C}{Set}}{\arset{C}{B}{-}}{\arset{C}{A}{-}}&\text{(米田の原理)}\\
+      &\cong\arset{C}{A}{B}&\text{(米田の原理)}
+    \end{align*}
+  \end{proof}
+\end{document}
