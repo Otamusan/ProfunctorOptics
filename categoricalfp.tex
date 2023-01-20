@@ -27,13 +27,1281 @@
 \newcommand{\functype}[2]{\pr{#1 -> #2}}
 \newcommand{\refcti}[1]{[CTI]\ref{#1}}
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
+
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
   \title{Profunctor Opticsの理論と実装}
   \author{https://otamusan.github.io/FPandCategory/categoricalfp.pdf}
   \maketitle
+
 	\tableofcontents
   \pagebreak
+  \section{はじめに}
+  圏論とはは数学の一分野であり、主に数学の諸概念を一般化する時に用いられる。対称的に集合論も諸概念を基礎付ける分野であるが、圏論では扱いたい概念をその外部への振る舞いによって定義し、集合論では扱いたい概念を集合の操作で具体的に定義をする。
+
+  また圏論はその性質から、ソフトウェアの保守性などを高めるための抽象化とも相性がよい。特に関数型プログラミングでは型付ラムダ計算を基盤としている言語が多く、それは圏論におけるカルテジアン閉圏で容易にモデル化できる。そのためデータ構造やそれに対する操作を考察する時に、圏論を用いて代数的に行うことができる。
+
+  プログラミングにおいてあるオブジェクトに対するゲッター、セッターや、アップキャスト、ダウンキャストは一般的な操作である。それらを圏論的に一般化したものがOpticsであり、この論文ではそれを更に高度な圏論によって一般化しようと試みた。
+
+  論文の流れとしては、二章で先に述べた操作の一般化であるOpticsについてまとめ、三章では四章で使用する圏論の概念の概説を行う。そして四章では二章で定義したOpticsを、より扱いやすい形式に変形する。
+
+  また論文内では例としてHaskellのコードを使用しているが、付録としてHaskellの簡単な説明と、Haskellの諸概念と圏論の関係性について載せてある。
+  \section{Optics}
+  最初にOpticsの例としてLens、Prismを挙げる。これらは先に述べたように、ゲッター、セッターとアップキャスト、ダウンキャストの一般化である。この初歩的な抽象化の恩恵として、これらの操作が圏論的に双対になることを確認してほしい。またこの章の内容は主に\cite{categories_of_optics}を参考にしている。
+
+  \subsection{LensとPrism}
+  Lensはオブジェクト指向におけるフィールドと、それに対するセッター、ゲッターを一般化した概念である。例えばある型$S$が型$A$を内部に保持する時、$A$に関する操作としては二つの関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$が考えられる。
+  直感的には$set$は$S$と$A$を受け取って、$S$の内部の$A$の値を与えられた$A$に置き換えた、新しい$S$の値を返す関数である。また$get$は$S$の内部の$A$の値を返す関数である。
+  
+  例として\pr{Person}型の値が型の直積によって\pr{String}型の値を持つとする。この\pr{Person}の値の中の文字列を$set$、$get$を用いて記述する
+  \begin{lstlisting}
+    type Person = (String, Int)
+
+    set :: (Person, String) -> Person
+    set (p, s) = (s, snd p)
+    get :: Person -> String
+    get = fst
+
+    person :: Person
+    person = ("A",20)
+    -- >>> get person
+    -- "A"
+    -- >>> set (person, "B")
+    -- ("B",20)
+  \end{lstlisting}
+  ここでは直積型を用いて$S$の値が$A$の値を持つことを明示的に示したが、一般の場合ではそうは行かない。そのため$set,\ get$関数による等式で間接的に示す。
+  \[\mor{\pi_A = get\circ set}{S\times A}{A}\]
+  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]
+  \[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
+  １つ目の等式はある$A$の値に対して、$set$を用いてその値を$S$に入れ$get$で取り出した値が元の$A$と等しいことを示す。
+  ２つ目は$S$から$get$で取り出した$A$の値を$S$に$set$した時、元の$S$と一致することを示している。
+  ３つ目はある$S$に$A$を置き換えた時、その前の$A$が上書きされることを示している。
+
+  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$、不可能であればそのまま$S$を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
+  \begin{lstlisting}   
+    newtype Odd = Odd{toInt :: Integer} deriving Show
+    match :: Integer -> Either Integer Odd
+    match x = if odd x 
+      then Right (Odd x)
+      else Left x
+    review :: Odd -> Integer
+    review = toInt
+
+    -- >>> match 4
+    -- Left 4
+    -- >>> match 3
+    -- Right (Odd {toInt = 3})
+    -- >>> review (Odd 5)
+    -- 5
+  \end{lstlisting}
+  Lensと同様にPrismでも、包含関係を間接的に示すのに$review,\ match$関数を用いた等式で示す。また等式における$[id_S,review]$は積における射の対の双対である。
+  \[match\circ review = \iota_A\mor{}{A}{S+A}\]
+  \[[id_S,review]\circ match = id_S\mor{}{S}{S}\]
+  \[(match+A)\circ match = \iota_S\circ match\mor{}{A}{(S+A)+A}\]
+  １つ目の等式は$A$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが最初の$A$を$S+A$に入射したものと一致することを示している。
+  ２つ目の等式は$S$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なったものが最初の$S$と一致し、ダウンキャストが失敗した場合も最初の$S$と一致することを示している。
+  
+  ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(A,S)$、Prismの$\mor{review}{A}{S}$と$\mor{match}{S}{S+A}$の組の全体を$Prism(A,S)$と表記することにしよう。ただしLens則、Prism則を満たすかどうかは問わないことにする。するとこれはHaskellにおいてはそのような多相型を定義することである。
+  \begin{lstlisting}
+    data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
+    data Prism s a = Prism{review :: a -> s , match :: s -> Either s a}
+    -- >>> :t Lens
+    -- Lens :: (s -> a) -> ((s, a) -> s) -> Lens s a
+    -- >>> :t Prism
+    -- Prism :: (a -> s) -> (s -> Either s a) -> Prism s a
+  \end{lstlisting}
+
+  また$Lens(A,S)$における$get$関数を$get_{A,S}$と表記する。また$set$関数やPrismにおいても同様に表記する。
+  
+  これによってLensの合成$\mor{\circ}{Lens(S,T)\times Lens(A,S)}{Lens(A,T)}$が定義を行う。
+  \begin{define}\label{def-comp-of-lens}
+    \[\mor{\circ}{Lens(S,T)\times Lens(A,S)}{Lens(A,T)}\]なる関数$\circ$を
+    任意の$\mor{set_{S,T}}{T\times S}{T}, \mor{get_{S,T}}{T}{S},\ \mor{set_{A,S}}{S\times A}{S},\ \mor{get_{A,S}}{S}{A}$に対して
+    \begin{align*}
+      get_{A,T}&=get_{A,S}\circ get_{S,T}\\
+      set_{A,T}&=set_{S,T}\circ(id_T\times set_{A,S})\circ a_{TSA}\circ(\tuple{id_T, get_{S,T}}\times id_A)
+    \end{align*}
+    と定義する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (TA) at (0, 0) {$T\times A$};
+        \node (TSpA) at (4, 0) {$(T\times S)\times A$};
+        \node (TpSA) at (8, 0) {$T\times (S\times A)$};
+        \node (TS) at (12, 0) {$T\times S$};
+        \node (T) at (14, 0) {$T$};
+
+				\draw[->] (TA) to node{\scriptsize$\tuple{id_T,get_{T,S}}\times id_A$}(TSpA);
+        \draw[->] (TSpA) to node{$a_{TSA}$}(TpSA);
+        \draw[->] (TpSA) to node{$id_T\times set_{S,A}$}(TS);
+        \draw[->] (TS) to node{$set_{T,S}$}(T);
+
+      \end{tikzpicture}
+    \end{center}
+  \end{define}
+  $set_{T,A}$の定義が複雑かもしれないが、単に$T$から$S$を取り出し、$S$に$A$を与えてその$S$をまた$T$に戻しているだけである。
+
+  またLensの合成において恒等射のような働きをするLensも定義できる。
+  \begin{define}[恒等Lens]\label{def-identity-lens}
+    \begin{align*}
+      get_{S,S} &= id_S\\
+      set_{S,S} &= \pi_{L,S\times S}
+    \end{align*}
+  \end{define}
+  PrismにおいてもLensと同様に合成が定義できる。
+  \subsection{Opticsへの一般化}
+  まずはOpticsを構成するための圏論の概念としてコエンドを定義する。
+  \begin{define}[コエンド]\label{def-coend}
+    ある圏$\cat{C,D}$と、関手$\functor{F}{C^{op}\times C}{D}$に対するコエンド$(\coend{C}{C} F(C,C),\kappa)$を以下のように構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[余楔] 余楔と呼ばれる組$(Y,\mu)$を、圏$\cat{D}$のある対象$Y$と、
+        圏$\cat{C}$の任意の対象$X$に対して$\mor{\mu_C}{Y}{F(X,X)}$なる射が存在し、圏$\cat{C}$の任意の射$\mor{f}{B}{A}$に対して$\mu_A\circ F(A,f)=\mu_B\circ F(f,B)$が成り立つような$\mu$によって構成する。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (FG) at (0, 0) {Y};
+            \node (FAGA) at (3, 0) {$F(A,A)$};
+            \node (FBGB) at (0, -2) {$F(B,B)$};
+            \node (FAGB) at (3, -2) {$F(A,B)$};
+    
+            \draw[<-] (FG) to node{$\mu_A$}(FAGA);  
+            \draw[<-] (FG) to node{$\mu_B$}(FBGB);
+            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
+            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
+          \end{tikzpicture}
+        \end{center}
+        \item[普遍性] ある余楔$(\coend{C}{C}F(C,C),\kappa)$が$F$に対してコエンドであるとは、余楔$(Y,\mu)$が存在して、任意の対象$X$において$\mu=h\circ \kappa_X$が成り立つような$\mor{h}{\coend{C}{C} F(C,C)}{Y}$が一意に存在する時である。
+        また、$\kappa$を余積の場合と紛らわしくない場合は入射と呼ぶことにする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (FG) at (0, 0) {$\coend{C}{C} F(C,C)$};
+            \node (X) at (-1.5, 1) {$Y$};
+            \node (FAGA) at (3, 0) {$F(A,A)$};
+            \node (FBGB) at (0, -2) {$F(B,B)$};
+            \node (FAGB) at (3, -2) {$F(A,B)$};
+    
+            \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
+            \draw[<-] (X) to node{$h$}(FG);
+    
+            \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
+            \draw[<-,bend left = 20] (X) to node{$\mu_A$}(FAGA);
+            \draw[<-,bend right = 20] (X) to node[swap]{$\mu_B$}(FBGB);
+            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
+            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
+          \end{tikzpicture}
+        \end{center}
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  コエンドの普遍性は$\coend{C}{C} F(C,C)$が圏$C$の任意の対象に対する$F(C,C)$の余積であることを示していて、$F(A,B)$の元に対し$f$を$A$と$B$のどちらに適用しても入射によって示されるということである。
+  
+  余積という部分をもう少し詳しく見ると、$F(A,A)$から$Y$への射の族$\mu$は同様の射の族$\kappa$によって単なる射$h$へと分解される。同様に$\kappa$が他の単なる射によって分解されるかといえば、コエンドの普遍性からそのような射の族は$\kappa$以外には存在しないと言える。そういった意味で$(\coend{C}{C} F(C,C),\kappa)$は余楔の中で、射の族としての最小限の性質のみを持っていると考えられる。
+  
+  また特に証明はしないが、$\cat{Set}$でのコエンド$(\coend{C}{C}F(C,C),\kappa)$は以下のように構成することができる。圏論的な証明については\cite{coend_calculus}を参照。
+  $\coprod_{C:\cat{C}} F(C,C)$を任意の対象$C$で添字付けられた$F(C,C)$の直和とする。
+  また$\coprod_{C:\cat{C}} F(C,C)$上の同値関係\[\tuple{A,a}\sim\tuple{B,b}\iff \exists \mor{f}{B}{A}\ \exists x\in F(A,B)\ (F(A,f)(x) = a \land F(f,B)(x) = b)\]による商集合$\coprod_{C:\cat{C}} F(C,C)/\sim$と直和による入射の組が$F$に対するコエンドになる。
+
+  これによりコエンドもHaskellで定義できるようになった
+  \begin{lstlisting}
+    {-# LANGUAGE ExistentialQuantification #-}
+    data Coend p = forall a. Coend (p a a)
+    -- >>> :t Coend
+    -- Coend :: p a a -> Coend p
+  \end{lstlisting}
+  \pr{Coend}の値コンストラクタを見ると、\pr{p a a}から\pr{Coend p}へ写る過程で型引数\pr{a}の情報を忘れてしまっている。そのため一度\pr{Coend}に写してしまうと、元の型に復元することはできなくなり、一般的には一切の操作が行えなくなってしまう。そういった意味でこれは任意の型\pr{a}で添字付けられた\pr{p a a}の直和であるように思える。
+
+  コエンドに限らずこういった定義の手法を存在量化と呼ぶが、実用の面では最低限操作が行えることを保証するために\pr{a}の型に制約を加えることが多い。
+
+  次にコエンドとエンドの関係性についての重要な命題を示す。
+  \begin{prop}\label{prop-preservation-coend-by-hom-functor}
+    \[\inset{\coend{C}{C} T(C,C)}{X}\cong\cend{C}{C}\inset{T(C,C)}{X}\]であり、$X,T$に対して自然。
+  \end{prop}
+  \begin{proof}
+    反変Hom関手は余連続であるから余極限を保つ。またエンドは極限によって定義できるように、コエンドも余極限によって定義できる。これによってコエンドは反変Hom関手によって保たれるが、反変性よりコエンドの双対であるエンドとして保たれる。
+  \end{proof}
+  \begin{define}[Optics]\label{def-optics}
+    対称モノイダル圏$\cat{C}$における組$(A,A')$、$(S,S')$の間のOpticの集合を
+    \[Optic_\cat{C}(A,A',S,S')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
+    また、$\kappa_M(l,r)$となる$Optic_\cat{C}(A,A',S,S')$の元を、紛らわしくない場合に$\mor{\tuple{l,r}}{(A,A')}{(S,S')}$と表記する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$\coend{C}{C} \arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
+        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
+        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
+        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
+
+        \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
+        \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
+        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A'}{S'}$}(FAGB);
+        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+  \end{define}
+  この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{N\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
+  \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
+  また\cite{categories_of_optics}の定義とは射の向きが逆に定義されていることに注意。
+  \begin{prop}
+    任意のOptics$\kappa_M\tuple{l,r}$と、$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\[\kappa_M\tuple{l,r} = \kappa_N\tuple{(f\otimes A)l,r(f^{-1}\otimes A)}\]である。また$f$は必ずしも同型射である必要はない。
+  \end{prop}
+
+  次にOpticsがLens、Prismの一般化であることを示したいが、そのために余米田の補題が必要であるためここで示す。
+
+  \begin{define}[余米田の補題]\label{def-coyoneda-lemma}
+    任意の圏$\cat{C}$と対象$A$と関手$\functor{F}{C}{Set}$において
+    \[FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}\]
+    またここでの積分記号はエンドではなくコエンドである。
+  \end{define}
+  \begin{proof}
+    米田の原理より、\[A\cong B\iff\arset{C}{A}{-}\cong\arset{C}{B}{-}\]であるから、$\inset{FA}{X}\cong\inset{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}$が$X$に対して自然に成り立つことを示せば良い。またコエンドは関手であるから、同型を保つ。
+    \begin{align*}
+      \inset{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}&\cong\cend{C}{C}\inset{FC\times\arset{C}{C}{A}}{X}&\text{(反変Hom関手の余極限の保存)}\\
+      &\cong\cend{C}{C}\inset{\arset{C}{C}{A}\times FC}{X}&\text{(積の交換)}\\
+      &\cong\cend{C}{C}\inset{\arset{C}{C}{A}}{\inset{FC}{X}}&\text{(べき随伴の射集合同型)}\\
+      &\cong\inset{FA}{X}&\text{(反変米田の補題)}
+    \end{align*}
+    よってである。計算のために使用した同型はすべて$X,F,A$に対して自然であるから、$FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}$が成り立ち、$F,A$に対して自然である。
+  \end{proof}
+  また同様の方法で$F$に反変関手を取る場合も証明できる。
+  すなわち、任意の関手$\functor{F}{C^{op}}{Set}$と対象$A$に対して
+  \[FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}\]が成り立つ。
+
+  余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的なコエンドの入射の構成は不明である。余楔を用いた証明も思いつくがコエンドの元を列挙できないためこの方法では難しい。そのため以前示した$\cat{Set}$上のコエンドの具体的な構成を用いて同型射を構成する。
+  \begin{proof}
+    同型射$\mor{\phi}{FA}{\coend{C}{C} FC\times\arset{C}{C}{A}}$、$\mor{\phi^{-1}}{\coend{C}{C} FC\times\arset{C}{C}{A}}{FA}$を以下のように定義する。ただし、$\cat{Set}$におけるコエンドの対象は直和によって定義されていたから、$\coend{C}{C} FC\times\arset{C}{C}{A}$の任意の元$x$はある対象$C$と元$x'\in FC\times\arset{C}{C}{A}$によって$x = \kappa_C(x')$となるように一意に分解できる。これにより$\phi^{-1}$は以下のように定義できる。
+    \begin{align*}
+      \phi(a) &= \kappa_A(a,id_A)\\
+      \phi^{-1}(x) &= \phi^{-1}(\kappa_B(b,f)) = Ffb
+    \end{align*}
+    すると、
+    \begin{align*}
+      \phi\circ\phi^{-1}(\kappa_B(b,f))&=\phi(Ffb)\\
+      &=\kappa_A(Ffb,id_A)\\
+      &=\kappa_B(b,f)&\text{(余楔の定義)}\\
+      \phi^{-1}\circ\phi(a) &= \phi^{-1}(\kappa_A(a,id_A))\\
+      &=a
+    \end{align*}
+    となるから、$\phi\circ\phi^{-1}=id,\ \phi^{-1}\circ\phi=id_{FA}$が成り立ち$FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}$となる。
+  \end{proof}
+
+  同型射を具体的な構成によって定義できたため、Haskellでも定義できるようになった。
+  \begin{lstlisting}
+    {-# LANGUAGE ExistentialQuantification #-}
+    data Coend p = forall a. Coend (p a a)
+
+    data CoyonedaRaw f a c b = CoyonedaRaw (f c) (b -> a)
+    type Coyoneda f a = Coend (CoyonedaRaw f a)
+
+    toCoyoneda :: f a -> Coyoneda f a
+    toCoyoneda x = Coend (CoyonedaRaw x id)
+
+    fromCoyoneda ::Functor f => Coyoneda f a -> f a
+    fromCoyoneda (Coend(CoyonedaRaw x y)) = fmap y x
+
+    data CoyonedaRaw' f a c b = CoyonedaRaw' (f c) (a -> b)
+    type Coyoneda' f a = Coend (CoyonedaRaw' f a)
+
+    toCoyoneda' :: f a -> Coyoneda' f a
+    toCoyoneda' x = Coend (CoyonedaRaw' x id)
+
+    fromCoyoneda' :: Contravariant f => Coyoneda' f a -> f a
+    fromCoyoneda' (Coend(CoyonedaRaw' x y)) = contramap y x
+  \end{lstlisting}
+
+  \begin{prop}\label{prop-lens-is-optics}
+    $Optic_{\cat{H},\times}(A,A',S,S')$をOpticの定義のモノイダル積$\otimes$を直積型である積$\times$に置き換えたものとする。すると、
+    \[Optic_{\cat{H},\times}(A,A,S,S) = Lens(A,S)\]である。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}&\cong\coend{C}{M}\arset{C}{S}{M}\times \arset{C}{S}{A}\times \arset{C}{M\otimes A}{S}&\text{(共変Hom関手の積の保存)}\\
+      &\cong\arset{C}{S}{A}\times \arset{C}{S\times A}{S}&\text{(余米田の補題)}\\
+    \end{align*}
+  \end{proof}
+  同様にPrismもOpticで表せる。
+  \begin{prop}\label{prop-prism-is-optics}
+    \[Optic_{\cat{C},+}(A,A,S,S) = Prism(A,S)\]である。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M+A}{S}&\cong\coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M}{S}\times \arset{C}{A}{S}&\text{(反変Hom関手の余積の保存)}\\
+      &\cong\arset{C}{S}{S+A}\times \arset{C}{A}{S}&\text{(余米田の補題)}\\
+    \end{align*}
+  \end{proof}
+  この計算も具体的な操作によって行なっているため、Haskellで記述することができる。また紙面の関係上Lensのみを示す。
+  \begin{lstlisting}
+  coendFmap :: forall p q. (forall a. p a a -> q a a) 
+  -> Coend p -> Coend q
+  coendFmap f (Coend p) = Coend (f p)
+  
+  data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
+
+  opticToLens :: Optic s s a a (,) -> Lens s a
+  opticToLens x = toLens $ fromCoyoneda' (coendFmap f x) where
+
+    f :: OpticRaw s s a a (,) m n 
+    -> CoyonedaRaw' (PseudoLens s a) s m n
+    f (OpticRaw l r) = CoyonedaRaw' (PseudoLens (snd (outProduct l)) r)
+    (fst (outProduct l)) 
+
+    toLens :: PseudoLens s a s -> Lens s a
+    toLens (PseudoLens x y) = Lens x y
+
+  lensToOptic :: Lens s a -> Optic s s a a (,)
+  lensToOptic (Lens get set) =coendFmap f 
+  (toCoyoneda'(PseudoLens get set)) where
+
+    f :: CoyonedaRaw' (PseudoLens s a) s m n -> OpticRaw s s a a (,) m n
+    f (CoyonedaRaw' (PseudoLens g s) y) = OpticRaw (inProduct (y, g)) s
+
+  data PseudoLens s a m = PseudoLens{g :: s -> a , s :: (m, a) -> s}
+
+  instance Contravariant (PseudoLens s a) where
+    contramap :: (c -> b) -> PseudoLens s a b -> PseudoLens s a c
+    contramap f (PseudoLens x y) = PseudoLens x (y.first f)
+  \end{lstlisting}
+  ここでの\pr{coendFmap}は、双関手間の自然変換\[\natf{\alpha}{P}{Q}{H\times H}{H}\]をコエンド間の射\[\mor{\displaystyle\int\alpha}{\coend{H}{C}P(C,C)}{\coend{H}{C}Q(C,C)}\]へと写す射関数である。コエンドを取る操作が関手であることは、コエンドを構成する余極限を取る操作が関手であることからわかる。
+
+
+  またこの同型によって、Lensを構成する関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$からOptics$\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A}{S}$の値に変換するかを見ることができる。実際に逆にたどると、
+  \begin{align*}
+    &\tuple{get,set}&:&\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
+    \intertext{$F(M)=\arset{C}{S}{A}\times \arset{C}{M\times A}{S}$とすると、}
+    =&\tuple{get,set}&:&F(S)\\
+    \intertext{余米田の補題の$\phi(a)=\kappa_A(a,id_A)$より、}
+    \rightarrow&\kappa_S(\tuple{get,set},id_S)&:&\coend{C}{M}F(M)\times \arset{C}{S}{M}\\
+    \intertext{表記を変えて}
+    =&\kappa_S(get,set,id_S)&:&\coend{C}{M}\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\times \arset{C}{S}{M}\\
+    \rightarrow&\kappa_S(id_S,get,set)&:&\coend{C}{M}\arset{C}{S}{M}\times\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
+    \intertext{$\mor{id_S}{S}{S}$、$\mor{get}{S}{A}$であるから射の対$\mor{\tuple{id_S,get}}{S}{S\times A}$を取って、}
+    \rightarrow&\kappa_S(\tuple{id_S,get},set)&:&\coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}
+  \end{align*}
+  というように$Optic(A,A,S,S)_{\cat{C},\times}$の値が得られる。ここでの$\kappa_S(\tuple{id_S,get},set)$は\[\tuple{\tuple{id_S,get},set}:\arset{C}{S}{S\times A}\times \arset{C}{S\times A}{S}\]をコエンドへ入射したものであり、Lensの場合は$M=S$となることが分かった。これにより、Opticは与えられた$S$を$\mor{l}{S}{M\otimes A}$によって$M$と$A$に分解し、$\mor{r}{M\otimes A}{S}$によって新たに与えられた$A$と、$l$によって得られた$M$からまた$S$を再構成する。といった流れになっていることが分かる。またこの解釈は\[Optic(S,S',A,A')_{\cat{C}}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]でも問題なく機能する。
+  \subsection{Opticsの圏論的性質}
+  Lens、Prismの合成と同様にOpticの合成\[\mor{\circ}{Optic_{\cat{C}}(S,S',T,T')\times Optic_{\cat{C}}(A,A',S,S')}{Optic_{\cat{C}}(A,A',T,T')}\]を考える。
+  \begin{prop}[フビニの定理]\label{prop-fubini-theorem}
+    \[\cend{C}{C}\ \ \ \ \cend{D}{D}T(C,C,D,D)\cong\cend{C\times D}{C,D}T(C,C,D,D)\]
+    \[\coend{C}{C}\ \ \ \ \coend{D}{D}T(C,C,D,D)\cong\coend{C\times D}{C,D}T(C,C,D,D)\]
+  \end{prop}
+  \begin{proof}
+    \cite{coend_calculus}を参照。エンドが右随伴関手であり、その一意性により示せる。
+  \end{proof}
+  \begin{prop}[積のコエンドの保存]\label{prop-preservation-of-coend-by-product}
+    関手$\functor{T,S}{C^{op}\times C}{Set}$において
+    \[\coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)\]であり$T,S$に対して自然。
+  \end{prop}
+  \begin{proof}
+    前提として、$\cat{Set}$においてもべき随伴$(-\times B)\dashv(-)^B$が成り立つから、$(-\times B)$は左随伴関手であり余連続である。
+    \begin{align*}
+      \coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)&\cong\coend{C}{C}(T(C,C)\times \coend{C}{D}S(D,D))&\text{(積関手の余連続性)}\\
+      &\cong\coend{C}{C}(\coend{C}{D}S(D,D)\times T(C,C))&\text{(積関手の余連続性)}\\
+      &\cong\coend{C}{C}(\coend{C}{D}T(C,C)\times S(D,D))&\text{(積の交換則)}\\
+      &\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)&\text{(フビニの定理)}
+    \end{align*}
+  \end{proof}
+  \begin{define}[Opticの合成]\label{def-comp-of-optic}
+    Opticの合成{\scriptsize\[\mor{\circ}{\coend{C\times C}{M,N}\arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}\times \arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を定義するが、コエンドの普遍性より、
+    \[\mor{\circ_{MN}}{\arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}\times \arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}}{\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]
+    を各$M,N$に対して$\circ_{MN}$を定義できれば$\circ$は一意に定まる。
+
+    \[\tuple{l',r'}\circ_{MN}\tuple{l,r}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]によって$\circ$を定義する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, 0) {$T$};
+        \node (NS) at (2, 0) {$N\otimes S$};
+        \node (NMA) at (5, 0) {$N\otimes (M\otimes A)$};
+        \node (NMA') at (9, 0) {$(N\otimes M)\otimes A$};
+
+        \draw[->] (T) to node{$l'$}(NS);
+        \draw[->] (NS) to node{$N\otimes l$}(NMA);
+        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
+
+        \node (T) at (0, -1) {$T'$};
+        \node (NS) at (2, -1) {$N\otimes S'$};
+        \node (NMA) at (5, -1) {$N\otimes (M\otimes A')$};
+        \node (NMA') at (9, -1) {$(N\otimes M)\otimes A'$};
+
+        \draw[<-] (T) to node{$r'$}(NS);
+        \draw[<-] (NS) to node{$N\otimes r$}(NMA);
+        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
+
+      \end{tikzpicture}
+    \end{center}
+    このようにOptic同士の合成はつなげると言うよりかは、埋め込むという印象の方が強い。
+  \end{define}
+  \begin{define}[恒等Optic]\label{def-identity-optic}
+    任意の対象$S,S'$に対する恒等Opticを、モノイダル圏の左単位子$\mor{\lambda_S^{-1}}{S}{I\otimes S}$、$\mor{\lambda_{S'}}{I\otimes S}{S}$によって、
+    \[id_{S,S'}=\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]と定義する。
+  \end{define}
+  \begin{prop}[Opticの結合則]\label{prop-associativity-of-optic}
+    任意のOptic$\mor{\tuple{l'',r''}}{(T,T')}{(R,R')},\ \mor{\tuple{l',r'}}{(S,S')}{(T,T')},\ \mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+    \[(\tuple{l'',r''}\circ\tuple{l',r'})\circ\tuple{l,r}=\tuple{l'',r''}\circ(\tuple{l',r'}\circ\tuple{l,r})\]が成り立つ。
+  \end{prop}
+  \begin{proof}
+    Opticの合成と同様に、フビニの定理より三つのコエンドを一つのコエンドとして計算できる。またモノイダル積関手の射の合成の保存より、適当に展開すれば簡単に示せる。
+  \end{proof}
+  \begin{prop}[Opticの単位元則]\label{prop-optic-has-identity}
+    任意のOptic$\mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+    \[\tuple{l,r}\circ\tuple{\lambda_A^{-1},\lambda_{A'}}=\tuple{l,r}\]
+    \[\tuple{\lambda_S^{-1},\lambda_{S'}}\circ\tuple{l,r}=\tuple{l,r}\]
+    が成り立つ。
+  \end{prop}
+  \begin{proof}
+    左単位子の振る舞いを観察するために前者は実際に示そう。
+    \begin{align*}
+      \tuple{l,r}\circ\tuple{\lambda_A^{-1},\lambda_{A'}}
+      &=\tuple{a^{-1}_{MIA}\circ(M\otimes\lambda_A^{-1})\circ l, r\circ(M\otimes\lambda_{A'})\circ a_{MIA'}}&\text{(Opticの合成の定義)}\\
+      &=\tuple{(\rho_M^{-1}\otimes A)\circ l,r\circ(\rho_M\otimes A')}&\text{(モノイダル圏の三角恒等式)}\\
+      &=\tuple{l,r\circ (\rho_M\otimes A')\circ(\rho_M^{-1}\otimes A')}&\text{(余楔の定義)}\\
+      &=\tuple{l,r}
+    \end{align*}
+    またモノイダル圏の三角恒等式を使用する場面においては$l$の方の図式を示しておく。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (S) at (0, 0) {$S$};
+        \node (MA) at (2, 0) {$M\otimes A$};
+        \node (MIA) at (5, 0) {$M\otimes (I\otimes A)$};
+        \node (MIA') at (5, -2) {$(M\otimes I)\otimes A$};
+        \draw[->] (S) to node{$l$}(MA);
+        \draw[->] (MA) to node{$M\otimes\lambda_A^{-1}$}(MIA);
+        \draw[->] (MIA) to node{$a^{-1}_{MIA}$}(MIA');
+        \draw[->] (MA) to node[swap]{$\rho^{-1}\otimes A$}(MIA');
+
+      \end{tikzpicture}
+    \end{center}
+  \end{proof}
+  これによって圏の公理をひと通り示せたから、実際にOpticsの圏が定義できる。
+  \begin{define}[Opticsの圏]\label{def-cat-of-optics}
+    対称モノイダル圏$\cat{C}$上の圏$\cat{Optic_C}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象] 対象の集合を$\obj{Optic_C}=\obj{C}\times \obj{C}$とする。これは単に圏$\cat{C}$の対象の組である。
+				\item[射] 任意の対象$(A,A'), (S,S')$に対する射集合を\[\arset{Optic_C}{(A,A')}{(S,S')}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}\]とする。射集合の元である射$\mor{\tuple{l,r}}{(A,A')}{(S,S')}$はそのままOpticである。
+				\item[射の合成] 定義\ref{def-comp-of-optic}を射の合成とする。
+				すなわち射{\scriptsize\[\mor{\circ}{\coend{C}{N} \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}\times \coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を射の合成を行う写像とみなすということである。またこの写像は、ある対象$M,N$に対して
+        \[\tuple{l',r'}\circ_{MN}\tuple{l,r}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]
+        となるような操作だった。
+				\item[恒等射の存在] 定義\ref{def-identity-optic}を恒等射とする。これも任意の対象$(S,S')$に対して\[\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]を恒等射とみなすということである。
+				\item[結合律] 命題\ref{prop-associativity-of-optic}より、任意のOptic$\mor{\tuple{l'',r''}}{(T,T')}{(R,R')},\ \mor{\tuple{l',r'}}{(S,S')}{(T,T')},\ \mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+        \[(\tuple{l'',r''}\circ\tuple{l',r'})\circ\tuple{l',r'}=\tuple{l'',r''}\circ(\tuple{l',r'}\circ\tuple{l,r})\]が成り立つ。
+				\item[単位元律] 命題\ref{prop-optic-has-identity}より、任意のOptic$\mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+        \[\tuple{l,r}\circ\tuple{\lambda_A^{-1},\lambda_{A'}}=\tuple{l,r}\]
+        \[\tuple{\lambda_S^{-1},\lambda_{S'}}\circ\tuple{l,r}=\tuple{l,r}\]
+        が成り立つ。
+			\end{mydescription}
+		\end{quote}
+  \end{define}
+  Opticが圏になることを示したから、それらの操作がLensのものと一致することを調べる。
+  \begin{prop}
+    Lensの合成と、Opticを経由したLensの合成は一致する。
+  \end{prop}
+  \begin{proof}
+    任意のLensから変換されたOptic\[\mor{\tuple{\tuple{id_S,get_{A,S}},set_{A,S}}}{(A,A)}{(S,S)}\]
+    \[\mor{\tuple{\tuple{id_{S,T},get_{S,T}},set_{TS}}}{(S,S)}{(A,A)}\]の合成を計算し、これをLensに変換する。
+
+    合成されたOpticにおける左側の射$l$は、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (3, -1) {$N\times S$};
+        \node (NMA) at (7, -1) {$N\times (M\times A)$};
+        \node (NMA') at (10, -1) {$(N\times M)\times A$};
+
+        \draw[->] (T) to node{$\tuple{id_T,get_{T,S}}$}(NS);
+        \draw[->] (NS) to node{$N\times \tuple{id_S,get_{S,A}}$}(NMA);
+        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
+      \end{tikzpicture}
+    \end{center}
+    \[l = a\circ(id_T\times\tuple{id_S,get_{A,S}})\circ\tuple{id_T,get_{S,T}}\]となるが、これは少し簡約できる。
+    \begin{align*}
+      &a\circ(id_T\times\tuple{id_S,get_{A,S}})\circ\tuple{id_T,get_{S,T}}\\
+      &=a\circ\tuple{id_T,\tuple{id_S,get_{A,S}\circ get_{S,T}}}&\text{(射の積の定義と対の分配則)}\\
+      &=a\circ\tuple{id_T,\tuple{get_{S,T},get_{A,S}\circ get_{S,T}}}&\text{(射の対の分配則)}\\
+      &=\tuple{\tuple{id_T,get_{S,T}},get_{A,S}\circ get_{S,T}}&\text{(結合子の定義)}\\
+    \end{align*}
+    合成されたOpticにおける右側の射$r$は、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (2, -1) {$N\times S$};
+        \node (NMA) at (5, -1) {$N\times (M\times A)$};
+        \node (NMA') at (9, -1) {$(N\times M)\times A$};
+
+        \draw[<-] (T) to node{$set_{S,T}$}(NS);
+        \draw[<-] (NS) to node{$N\times set_{A,S}$}(NMA);
+        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
+      \end{tikzpicture}
+    \end{center}
+    \[r = set_{S,T}\circ\tuple{\pi_T,set_{A,S}\circ\pi_{S\times A}}\circ a^{-1}\]となる。これは特に簡約できないが、元のLensの$set$の合成に類似しているため違和感は無い。
+    \[\tuple{l,r}:\arset{C}{T}{(T\times S)\times A}\times\arset{C}{(T\times S)\times A}{T}\]
+
+    次にこれをLensに復元する。命題\ref{prop-lens-is-optics}より、\[\mor{\pi_{A}\circ l=get_{A,S}\circ get_{T,S}}{T}{A}\]は明らかに定義\ref{def-comp-of-lens}の$get_{A,T}$の定義と一致する。片方の\[\mor{\pi_{T\times S}\circ l=\tuple{id_T,get_{S,T}}}{T}{T\times S}\]は$r$の$T\times S$側に合成すれば良いから、\[\mor{r\circ(\tuple{id_T,get_{S,T}}\times A)}{T\times S}{T}\]
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (T) at (0, -1) {$T$};
+        \node (NS) at (2, -1) {$T\times S$};
+        \node (NMA) at (5, -1) {$T\times (S\times A)$};
+        \node (NMA') at (9, -1) {$(T\times S)\times A$};
+        \node (NMA'') at (13, -1) {$T\times A$};
+
+        \draw[<-] (T) to node{$set_{S,T}$}(NS);
+        \draw[<-] (NS) to node{$T\times set_{A,S}$}(NMA);
+        \draw[<-] (NMA) to node{$a_{TSA}$}(NMA');
+        \draw[<-] (NMA') to node{$\tuple{id_T,get_{S,T}}\times A$}(NMA'');
+      \end{tikzpicture}
+    \end{center}
+    となる。これが$set_{A,T}$と一致するかはわかりにくいが、定義\ref{def-comp-of-lens}における$set_{A,T}$の定義の図式を左右反転させたものと一致することが分かる。
+  \end{proof}
+  \subsection{Lawful Optics}
+  LensやPrismの合成をOpticsによって一般化することができたが、それらの満たすべき制約についてもOpticsを用いて議論できる。またLawful Opticsについては主に\cite{categories_of_optics}を参考にしているが、一部証明を簡略化している。
+
+  例えばLensにおいて、三つのレンズ則\[\mor{\pi_A = get\circ set}{S\times A}{A}\]
+  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]\[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
+  を与えたが、二つ目の等式はOpticと見なした時の左右の射の合成が恒等射になっている。一つ目は恒等射とはならないものの、$get$と$set$の合成が射影射として、$A$側については恒等となっている。そのため左右の射が互いに逆射になることが条件のように思える。そのため実際に逆射となると仮定しよう。すなわち次が成り立つ。
+  \[id_{S\times A} = \tuple{id_S,get}\circ set\]
+
+  しかしこの等式が実際に成り立つとすると、
+  \begin{align*}
+    id_{S\times A}&=\tuple{id_S,get}\circ set\\
+    &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
+    &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
+  \end{align*}
+  $id_{S\times A}$は$\pi_S$,$\pi_A$の射の対であり、$\tuple{set,\pi_A}$と等しいから$set = \pi_S$が成り立ってしまう。このような$set$は与えられた$A$の値を完全に廃棄し、$S$の値も全く変化させないということで、完全に非直感的な操作となってしまった。これにより厳密に逆射になることを制約に加えることはできないため、少し緩めたものを考える必要がある。
+
+  また、任意のOpticに対して逆射となるような操作を定義するには、Opticの合成と同じようにコエンドの普遍性を用いて行う必要がある。
+  \begin{define}[outside関数]
+    関数$\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}$をコエンドの普遍性によって定義する。任意の対象$M$に対する射
+    \[\mor{outside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]を任意の射$\mor{l}{S}{M\otimes A},\ \mor{r}{M\otimes A}{S}$に対して\[outside(l,r)=r\circ l\]と定義する。
+
+    次に$(\arset{C}{S}{S},outside)$が余楔であることを確認する。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$\arset{C}{S}{S}$};
+        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}$};
+        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A}{S}$};
+        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A}{S}$};
+
+        \draw[<-] (FG) to node{$outside_M$}(FAGA);
+        \draw[<-] (FG) to node{$outside_N$}(FBGB);
+        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A}{S}$}(FAGB);
+        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+    任意の射$\mor{f}{N}{M},\ \mor{l}{S}{N\otimes A},\ \mor{r}{M\otimes A}{S}$に対して\[outside((f\otimes A)\circ l,r) = r\circ ((f\otimes A)\circ l)=(r\circ (f\otimes A))\circ l=outside(l,r\circ (f\otimes A))\]であるから確かに余楔である。よって\[\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]はコエンドの普遍性によって一意に定まる。
+  \end{define}
+  
+  \begin{define}[once、twice関数]
+    コエンド\[Optic^2_\cat{C}(A,A,S,S)=\coend{C\times C}{M,N}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{N\otimes A}\times\arset{C}{N\otimes A}{S}\]
+    に対して射$\mor{once,twice}{Optic_\cat{C}(A,A,S,S)}{Optic^2_\cat{C}(A,A,S,S)}$を定義する。
+
+    任意の対象$M$に対して、
+    \begin{align*}
+      once_M(l,r) &= \tuple{l,id_{M\otimes A},r}\\
+      twice_M(l,r) &= \tuple{l,l\circ r,r}
+    \end{align*}
+    とすると、コエンドの普遍性より$once,twice$関数は一意に定まる。
+  \end{define}
+  また$Optic^2_\cat{C}(A,A,S,S)$のコエンドの普遍性により、任意の射\[\mor{l}{S}{M\otimes A},\ \mor{c}{M'\otimes A}{N\otimes A},\ \mor{r}{N'\otimes A}{S}\]\[\mor{f}{M'}{M}\ \mor{g}{N'}{N}\]に対して、
+  \begin{align*}
+    \tuple{(f\otimes A)\circ l,c,r}&=\tuple{l,c\circ(f\otimes A),r}\\
+    \tuple{l,c,r\circ(g\otimes A)} &= \tuple{l,(g\otimes A)\circ c,r}
+  \end{align*}
+  が成り立つ。
+  \begin{define}[lawful性]
+    あるOptic $\mor{\tuple{l,r}}{(A,A)}{(S,S)}$がlawfulであるとは、
+    \[outside(l,r)=id_S,\ once(l,r)=twice(l,r)\]を満たす時である。
+    すなわち\[r\circ l = id_S,\ \tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}\]である。
+  \end{define}
+  outside関数による制約は単なる逆射の定義の一部であるが、once関数、twice関数による制約がどのように緩められているかについて考える。\\
+
+  当然$\tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}$ならば$id_{M\otimes A}=l\circ r$が成り立つとは限らない。これらが単なる射集合の順序対であれば成り立つが、右辺左辺はコエンドの元である。これにより余楔の等式によってこの等式が構成されていた場合は、左右の$l,r$に干渉してしまうからである。
+
+  
+  % \begin{define}[inside関数]
+  %   関手$\functor{\arset{C}{M\otimes -}{M\otimes -}}{C^{op}\times C}{Set}$に対するコエンド$\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}$を用いて、ある$M$に対するある射$\mor{\phi}{M}{M}$を表現する。
+
+  %   これによってinside関数\[\mor{inside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}}\]を同様にコエンドの普遍性によって定義しよう。
+
+  %   任意の対象$M$に対して\[\mor{inside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{M\otimes A}{M\otimes A}}\]を
+  %   \[inside_M(l,r)=l\circ r\]とすると、コエンドの普遍性により$inside$関数が一意に定まる。
+  % \end{define}
+  % この二つの関数によって、定義\ref{def-lawful-optic}におけるlawful opticの等式は以下のように置き換えられる。
+  % \[outside(l,r)=id_S\]
+  % \[inside(l,r)=\phi\otimes A\]
+  % またコエンドの普遍性によれば自明であるが以下の命題が成り立つ。
+  % \begin{prop}
+  %   任意のOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$と$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\begin{align*}
+  %     inside(l,r)&=(f^{-1}\otimes A)\circ inside(l,r)\circ(f\otimes A)
+  %   \end{align*}
+  %   である。
+  % \end{prop}
+  % これによって、$inside(l,r)=\phi\otimes A$なる$\phi$の始域と終域は、$l,r$の始域、終域となる対象$M$と一致している必要性は無い。
+
+  % \begin{define}[lawful Optic]\label{def-lawful-optic}
+  %   あるOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$がlawfulであるとは、何らかの対象$M$と射$\mor{\phi}{M}{M}$が存在して
+  %   \[r\circ l = id_S\]
+  %   \[\tuple{l,id_A,r}\]が成り立つ時である。
+  % \end{define}
+  \begin{prop}[LensのLawful性]
+    レンズ則を満たすLens $(get,set)$に対して、対応するOptic $\tuple{\tuple{id_S,get},set}$はLawful性を満たす。
+  \end{prop}
+  3つ目のレンズ則は\cite{categories_of_optics}では\[set\circ (set\times A) = set\circ \pi_{1,3}\]と定義されているが、$\pi_{1,3}=(\pi_S\times A)$によって証明の簡略化が可能である。
+  \begin{proof}
+    Lawful性は逆射の関係と比べて、$l\circ r=id_{M\otimes A}$の条件が余楔の等式によって緩められている。そのため証明には$(-)\times A$の形の射に変形することが重要である。分かりやすい例で言えば三つ目のレンズ則
+    \[set\circ(set\times A) = set\circ (\pi_S\times A)\]が該当する。また、Lensにおける合成$l\circ r$においても、
+    \begin{align*}
+      \tuple{id_S,get}\circ set &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
+      &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
+      &= (set\times A)\circ\tuple{id_{S\times A},\pi_A}&\text{(射の積の定義)}\\
+    \end{align*}
+    が成り立つ。これによって、
+    \begin{align*}
+      &\tuple{\tuple{id_S,get},\tuple{id_S,get}\circ set, set}\\
+      &=\tuple{\tuple{id_S,get},(set\times A)\circ\tuple{id_{S\times A},\pi_A}, set}\\
+      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(set\times A)}&\text{(余楔の定義)}\\
+      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(\pi_S\times A)}&\text{(レンズ則)}\\
+      &=\tuple{\tuple{id_S,get},(\pi_S\times A)\circ\tuple{id_{S\times A},\pi_A}, set}&\text{(余楔の定義)}\\
+      &=\tuple{\tuple{id_S,get},\tuple{\pi_S,\pi_A}, set}&\text{(射の積の定義)}\\
+      &=\tuple{\tuple{id_S,get},id_{S\times A}, set}&\text{(積の普遍性)}
+    \end{align*}
+    となり、Lens則を満たす場合はLawful性を満たすことが分かった。
+  \end{proof}
+  \begin{prop}[lawful性の合成における閉性]
+    二つのLawful Optic \[\mor{\tuple{l',r'}}{(S,S)}{(T,T)},\ \mor{\tuple{l,r}}{(A,A)}{(S,S)}\]の合成\[\mor{\tuple{l',r'}\circ\tuple{l,r}}{(A,A)}{(T,T)}\]もまたLawfulである。
+  \end{prop}
+  \begin{proof}
+    \[\tuple{l',r'}\circ\tuple{l,r}=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ r'\circ(N\otimes r)\circ a}\]であったから、
+    \[r'\circ(N\otimes r)\circ a\circ a^{-1}\circ(N\otimes l)\circ l'=id_T\]
+    \begin{alignat*}{2}
+      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
+      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
+    \end{alignat*}
+    の二つを示せば良い。ただし前者は自明であるため省略する。
+    \[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]とすると、後者の等式は\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l',f_l\circ id_{(N\otimes M)\otimes A}\circ g_r, r'\circ g_r}\]と表せる。
+    余楔の等式を用いて\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]が証明できたから、この等式においても余楔の等式が成り立てば良い。すなわち\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]である。もし$\phi\otimes S$が$f_l$より外側に来れば、この組全体の余楔の等式により、$l',r'$に対しても余楔の等式が成り立つ。よって\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]を示せば良い。特に前者を図式で表すと以下のようになる。
+
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (n) at (-2, 0) {$N$};
+        \node (n') at (-2, -2) {$N'$};
+        \draw[->] (n) to node{$\phi$}(n');
+
+        \node (ns) at (0, 0) {$N\otimes S$};
+        \node (n's) at (0, -2) {$N'\otimes S$};
+        \draw[->] (ns) to node{$\phi\otimes S$}(n's);
+
+
+        \node (nma) at (3, 0) {$N\otimes (M\otimes A)$};
+        \node (n'ma) at (3, -2) {$N'\otimes (M\otimes A)$};
+        \draw[->] (nma) to node{\scriptsize$\phi\otimes(M\otimes A)$}(n'ma);
+
+
+        \node (nma2) at (6, 0) {$(N\otimes M)\otimes A$};
+        \node (n'ma2) at (6, -2) {$(N'\otimes M)\otimes A$};
+        \draw[->] (nma2) to node{\scriptsize$(\phi\otimes M)\otimes A$}(n'ma2);
+        \draw[->] (ns) to node{$N\otimes l$}(nma);
+        \draw[->] (n's) to node{$N'\otimes l$}(n'ma);
+        \draw[->] (nma) to node{$a_{NMA}$}(nma2);
+        \draw[->] (n'ma) to node{$a_{N'MA}$}(n'ma2);
+      \end{tikzpicture}
+    \end{center}
+    左の正方形はモノイダル積$\otimes$の双関手性によって可換になり、右の正方形は結合子$a$の自然性によって可換になるから、全体が可換になり、\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]が成り立つ。同様に\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]も成り立つ。これと余楔の等式によって\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]もまた成り立って、同様に\[\tuple{f_l \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r\circ(\phi\otimes S)} = \tuple{f_l\circ l',f_l \circ(\phi\otimes S)\circ l'\circ r'\circ g_r, r'\circ g_r}\]もまた成り立つから、\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]と同様に余楔の等式を利用して\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l', f_l\circ g_r, r'\circ g_r}\]というように少し簡約できた。ここからの証明も\[\tuple{l,l\circ r, r} = \tuple{l, id_{M\otimes A}, r}\]の証明と同様の操作が行えることを自然性やら関手性で示せば証明できる。
+    よって    \begin{alignat*}{2}
+      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
+      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
+    \end{alignat*}が成り立ち、$\tuple{l',r'}\circ\tuple{l,r}$はLawfulである。
+    % まず$Optic^2$同士の合成\[\mor{\circ}{Optic^2_\cat{C}(T,T,S,S)\times Optic^2\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(T,T,A,A)}\]を定義しよう。
+    % これは\[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]として
+    % \[\circ_{MN} (\tuple{l',c',r'},\tuple{l,c,r}) =\tuple{f_l\circ l',f_l\circ c'\circ g_r, r'\circ g_r}\]を任意の対象$M,N$に対して定義しコエンドの普遍性より、実際にOptic間の写像となる。
+    % またこの時明らかに\[\circ (twice(l',r'),twice(l,r)) = twice(\tuple{l',r'}\circ\tuple{l,r})\]である。ここで左の引数をonce関数に置き換えると
+    % \begin{align*}
+    %   \circ (once(l',r'),twice(l,r)) &=  \tuple{f_l\circ l',f_l\circ g_r, r'\circ g_r}\\
+    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes l)\circ(N\otimes r)\circ a,\ r'\circ(N\otimes r)\circ a}\\
+    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes (l\circ r))\circ a,\ r'\circ(N\otimes r)\circ a}
+    % \end{align*}
+    
+  \end{proof}
+  \begin{prop}[恒等Opticのlawful性]  
+    任意の対象$(S,S)$に対する恒等Optic$\tuple{\lambda_S^{-1},\lambda_S}$はLawfulである。
+  \end{prop}
+  \begin{proof}
+    $\lambda_S$と$\lambda_S^{-1}$は互いに逆射であるから明らかにlawfulである。
+  \end{proof}
+  \section{Profunctorとモナド}
+  次章ではOpticsの別の表現方法としてProfunctor Opticsを定義するが、そのために必要な圏論の知識がいくつかあるため軽くまとめておく。
+  \subsection{超自然変換}
+  評価射$\mor{ev_{A,B}}{A^B\times B}{A}$は$A$に対して自然であったが、$B$に対してはドメイン側に$B$が二回出ているため自然性は定義できず、代わりに超自然性を使う必要があると説明したがそれを厳密に議論する。
+
+  \begin{define}
+    関手$\functor{F}{C^{op}\times C}{Set}$に対して対象$X$、$\mor{\mu_A}{X}{T(A,A)}$が楔$(X,\mu)$である時、$\mu$を超自然変換と呼ぶ。
+    また対象$X$、$\mor{\mu_A}{T(A,A)}{X}$が余楔$(X,\mu)$である時も同様に超自然変換と呼ぶ。
+  \end{define}
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$X$};
+      \node (FAGA) at (3, 0) {$T(A,A)$};
+      \node (FBGB) at (0, -2) {$T(B,B)$};
+      \node (FAGB) at (3, -2) {$T(A,B)$};
+
+      \draw[->] (FG) to node{$\mu_A$}(FAGA);
+      \draw[->] (FG) to node{$\mu_B$}(FBGB);
+      \draw[->] (FAGA) to node{$T(A,f)$}(FAGB);
+      \draw[->] (FBGB) to node{$T(f,B)$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  自然変換がエンドで定義されることから、自然変換の成分を元と見なした時これらは超自然性を持つ。
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$1$};
+      \node (FAGA) at (3, 0) {$\arset{D}{FA}{GA}$};
+      \node (FBGB) at (0, -2) {$\arset{D}{FB}{GB}$};
+      \node (FAGB) at (3, -2) {$\arset{D}{FA}{GB}$};
+
+      \draw[->] (FG) to node{$\alpha_A$}(FAGA);
+      \draw[->] (FG) to node{$\alpha_B$}(FBGB);
+      \draw[->] (FAGA) to node{$\arset{D}{FA}{Gf}$}(FAGB);
+      \draw[->] (FBGB) to node{$\arset{D}{Ff}{GB}$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  \begin{prop}[評価射の超自然性]
+    圏$\cat{Set}$における評価射$\mor{ev_{A,B}}{\inset{B}{A}\times B}{A}$は$A$に対して自然であったが、$B$に対しては超自然になる。
+  \end{prop}
+  \begin{proof}
+    任意の射$\mor{g}{B'}{A}$、$\mor{f}{B}{B'}$、$B$の任意の元$b$に対して、\[ev_{A,B'}\circ\tuple{g,f(b)} = (g\circ f)(b)=ev_{A,B}\circ\tuple{g\circ f,b}\]であるから、$(A,ev_A)$は明らかに余楔となる。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (FG) at (0, 0) {$A$};
+        \node (FAGA) at (4, 0) {$\inset{B}{A}\times B$};
+        \node (FBGB) at (0, -2) {$\inset{B'}{A}\times B'$};
+        \node (FAGB) at (4, -2) {$\inset{B'}{A}\times B$};
+  
+        \draw[<-] (FG) to node{$ev_{A,B}$}(FAGA);
+        \draw[<-] (FG) to node[swap]{$ev_{A,B'}$}(FBGB);
+        \draw[<-] (FAGA) to node{$\inset{f}{A}\times B$}(FAGB);
+        \draw[<-] (FBGB) to node[swap]{$\inset{B'}{A}\times f$}(FAGB);
+      \end{tikzpicture}
+    \end{center}
+  \end{proof}
+  このコエンドの図式は余米田の補題で示したものと非常に似ているが、実際に$F=Id_{\cat{Set}}$とすると明らかに\[A\cong\coend{C}{C}\arsetr{Set}{C}{A}\times C\]が成り立つ。つまり余楔$(A,ev_A)$はコエンドでもある。
+  \subsection{Profunctor}
+  ProfunctorはDistributor、Relatorなどとも呼ばれている概念で、二項関係の圏論的な一般化である。
+
+  まず集合$A,B$の間の二項関係$R$は$A\times B$の部分集合であるから、$2 = \{0,1\}$として特性関数\[\mor{R}{A\times B}{2}\]と表せる。
+
+  また集合$2$は、ある集合$A$の二つの元を取ったときに、二つの関係は等しいか等しくないかの情報しか無く、$2$の元が二つであるのはこの情報を表すためであると考えることもできる。
+
+  つまり二項関係では二つの集合の垣根を超えて、等しいか等しくないかの関係付けを行なっているとみなせる。これを圏に一般化しようとすると、二つの対象の間の関係は集合の圏に属する射集合で表されるから、集合$2$の代わりに圏$\cat{Set}$を使うのが望ましい。よってProfunctorは以下のように定義される。
+
+  \begin{define}[Profunctor]
+    圏$\cat{A,B}$において、関手$\functor{F}{A^{op}\times B}{Set}$をProfunctorとする。
+    
+    また$\cat{Cat}$はカルテジアン閉圏であるから、$\functor{F}{A^{op}\times B}{Set}$と$\functor{F}{B}{\incat{A^{op}}{Set}}$と同一視できる。
+  \end{define}
+  また双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$は明らかにProfunctor\ $\profunctor{\arset{C}{-}{-}}{C}{C}$である。
+  \begin{define}[Profunctorの合成]
+    Profunctor\ $\profunctor{F}{A}{B},\ \profunctor{G}{B}{C}$の合成
+    $\profunctor{G\diamond F}{A}{C}$を
+    \[(G\diamond F)(A,C) = \coend{B}{B} G(B, C)\times F(A, B)\]と定義する。
+  \end{define}
+  集合の圏においてコエンドは添字付けられた余積のように働いたから、$(G\diamond F)(A,C)$は大まかには$\cat{B}$の任意の対象$B$に対する$G(B,C)$と$F(A,B)$の元の組をすべて含むような集合とみなすことができる。
+  \begin{prop}[Profunctorの結合律]
+    \[(H\diamond G)\diamond F \cong H\diamond(G\diamond F)\]
+  \end{prop}
+  \begin{prop}[Profunctorの単位元律]
+    \[F\diamond \arset{A}{-}{-} \cong F,\ \arset{B}{-}{-}\diamond F\cong F\]
+  \end{prop}
+  証明は\cite{coend_calculus}を参照。フビニの定理と余米田の補題から証明が可能である。
+  またHaskellにおける\pr{Profunctor}型クラスのインスタンス\pr{f}は$\functor{f}{C^{op}\times C}{C}$であるから
+  \begin{lstlisting}
+    class Profunctor p where
+      dimap :: (a -> b) -> (c -> d) -> p b c -> p a d
+      dimap f g = lmap f . rmap g
+  \end{lstlisting}
+  と定義できる。またProfunctor同士の合成は
+  \begin{lstlisting}
+    data CompRaw q p a c b d = CompRaw (q b c, p a d)
+    newtype Comp q p a c = Comp (Coend (CompRaw q p a c))
+
+    (<>) :: (Profunctor p , Profunctor q) =>
+     q b c -> p a b -> Comp q p a c
+    (<>) q p = Comp (Coend (CompRaw (q , p)))
+
+    instance (Profunctor p, Profunctor q) => Profunctor(Comp q p) where
+      dimap :: (Profunctor p, Profunctor q) =>
+       (a -> b) -> (c -> d) -> Comp q p b c -> Comp q p a d
+      dimap f g (Comp(Coend (CompRaw (q, p)))) = 
+      Comp(Coend(CompRaw (rmap g q, lmap f p)))
+  \end{lstlisting}
+  
+  Profunctorに関する基本的な性質を挙げたため、その例とOpticの射集合を取る操作がProfunctorであることを示す。
+
+  \begin{prop}\label{prop-optic-as-profunctor}
+    対象$A,A',S,S'$からOptic $\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$を取る操作はProfunctorである。
+  \end{prop}
+  \begin{proof}
+    $\Phi((A,A'),(S,S'))=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$とする。Hom関手の定義より、$A,S'$に対して共変、$A',S$に対して反変であるから、\[\functor{\Phi}{(C\times C^{op})\times (C^{op}\times C)}{Set}\]と表せる。任意の圏$\cat{A,B}$に対して$(\cat{A}\times \cat{B})^{op}\cong \cat{A}^{op}\times \cat{B}^{op}$であるから、\[\functor{\Phi}{(C^{op}\times C)^{op}\times (C^{op}\times C)}{Set}\]とも表すことができ、これはProfunctor\[\profunctor{\Phi}{C^{op}\times C}{C^{op}\times C}\]である。
+  \end{proof}
+
+  ただし$\Phi$は圏$\cat{Optics}$における双Hom関手であったから、単なる恒等Profunctorである。
+  \subsection{モナド}
+  関数型言語における圏論の応用では比較的有名なモナドについても定義しておく。
+  \begin{define}[モナド]
+    関手$\functor{M}{C}{C}$に対するモナド$(M,\eta, \mu)$を以下の要素で構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[乗算子] 自然変換$\nat{\eta}{Id_C}{M}$
+        \item[単位子] 自然変換$\nat{\mu}{M\circ M}{M}$
+        \item[結合則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (3, -2) {$M$};
+            \node (ww) at (3, 0) {$M\circ M$};
+            \node (ww2) at (0, -2) {$M\circ M$};
+            \node (www) at (0, 0) {$M\circ M\circ M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\eta$}(w);
+            \draw[double,double equal sign distance,-implies] (ww2) to node{$\eta$}(w);
+            \draw[double,double equal sign distance,-implies] (www) to node{$M\circ \mu$}(ww);
+            \draw[double,double equal sign distance,-implies] (www) to node{$\mu\circ M$}(ww2);
+          \end{tikzpicture}
+        \end{center}
+        \item[単位則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$M$};
+            
+            \node (ww) at (0, -2) {$M\circ M$};
+            \node (w2) at (-2, -2) {$M$};
+            \node (w3) at (2, -2) {$M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (w2) to node{$M\circ\eta$}(ww);            
+            \draw[double,double equal sign distance,-implies] (w3) to node[swap]{$\eta\circ M$}(ww);
+
+            \draw[double,double equal sign distance] (w) to (w2);
+            \draw[double,double equal sign distance] (w) to (w3);
+
+          \end{tikzpicture}
+        \end{center}      
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  \begin{prop}
+    $(M,\eta,\mu)$がモナドならば、$(\incatp{\cat{X}}{M},\incatp{\cat{X}}{\eta},\incat{\cat{X}}{\mu})$もまたモナドである。
+  \end{prop}
+  \begin{proof}
+    関手の合成の関手性より結合則、単位則の図式の可換性を保つから明らか。
+  \end{proof}
+  次にこのモナドの定義における関手をProfunctorに置き換える。
+  \begin{define}[プロモナド]
+    Profunctor $\profunctor{M}{C}{C}$に対するモナド$(M,\eta, \mu)$を以下の要素で構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[乗算子] 自然変換$\nat{\mu}{M\diamond M}{M}$
+        \item[単位子] 自然変換$\nat{\eta}{\arset{C}{-}{-}}{M}$
+        \item[結合則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (3, -2) {$M$};
+            \node (ww) at (3, 0) {$M\diamond M$};
+            \node (ww2) at (0, -2) {$M\diamond M$};
+            \node (www) at (0, 0) {$M\diamond M\diamond M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (ww2) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (www) to node{$M\diamond \mu$}(ww);
+            \draw[double,double equal sign distance,-implies] (www) to node{$\mu\diamond M$}(ww2);
+          \end{tikzpicture}
+        \end{center}
+        \item[単位則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$M$};
+            
+            \node (ww) at (0, -2) {$M\diamond M$};
+            \node (w2) at (-3, -2) {$M\diamond \arset{C}{-}{-}$};
+            \node (w3) at (3, -2) {$\arset{C}{-}{-}\diamond M$};
+            \draw[double,double equal sign distance,-implies] (ww) to node{$\mu$}(w);
+            \draw[double,double equal sign distance,-implies] (w2) to node{$M\diamond\eta$}(ww);            
+            \draw[double,double equal sign distance,-implies] (w3) to node[swap]{$\eta\diamond M$}(ww);
+
+            \draw[double,double equal sign distance] (w) to (w2);
+            \draw[double,double equal sign distance] (w) to (w3);
+
+          \end{tikzpicture}
+        \end{center}
+        一般のモナドの時は$M\circ Id_\cat{C}=M$が成り立つが、プロモナドでは$=$ではなく同型$M\diamond \arset{C}{-}{-}\cong M$が成り立つため図式の見た目が少し異なる。
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  \begin{prop}
+    $\profunctor{\Phi}{C^{op}\times C}{C^{op}\times C}$はプロモナドである。
+  \end{prop}
+
+  \begin{proof}
+    \begin{quote}~
+      \begin{mydescription}
+        \item[乗算子]まず\[\Phi\diamond\Phi((A,A'),(T,T')) = \coend{C}{S,S'}(\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S})\times(\coend{C}{N}\arset{C}{T}{N\otimes S}\times \arset{C}{N\otimes A'}{S})\]であるが、$\phi((A,A'),(S,S'))$は圏$\cat{Optic}$における射集合であるから、余米田の補題より$\Phi((A,A'),(S,S'))$への射が得られ、これを乗算子とする。すなわち圏$\cat{Optic}$における射の合成によって定義する。
+        \item[単位子] 
+        自然変換$\nat{\eta}{\arset{C^{op}\times C}{-}{-}}{\Phi}$の任意の対象$(A,A'),(S,S')$に対する成分\[\mor{\eta_{(A,A'),(S,S')}}{\arset{C^{op}\times C}{(A,A')}{(S,S')}}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S}}\]を任意の射$\mor{f}{S}{A},\ \mor{g}{A}{S}$とモノイダル積の単位子に対して\[\eta_{(A,A'),(S,S')}(f,g) = \kappa_I(\lambda_A^{-1}\circ f,g\circ\lambda_{A'})\]と定義する。
+        また$\lambda$の自然性より$\eta$も自然である。
+        \item[結合則] $圏\cat{Optic}$の結合則より成り立つ。
+        \item[単位則] 同型$\Phi\cong\Phi\diamond\arset{(C^{op}\times C)}{-}{-}$が成り立つが、元の対応は$\tuple{f,g}\sim\tuple{\tuple{f,g},\tuple{id_A,id_{A'}}}$となり、モナドの単位則において単位子を適用するとき、与えられる$\arset{(C^{op}\times C)}{-}{-}$の値は常に恒等射$\tuple{id_A,id_{A'}}$である。\[\eta_{(A,A'),(A,A')}(id_A,id_{A'})=\tuple{\lambda_A^{-1},\lambda_{A'}}=id_{A,A'}\]であり、圏$\cat{Optic}$における恒等射となる。よってモナドの単位則もまた$\cat{Optic}$の単位元則より成り立つ。
+      \end{mydescription}
+    \end{quote}
+  \end{proof}
+  また、$\Phi$は圏$\cat{Optic}$の射集合であったからProfunctorのなす圏における恒等射である。二度手間になってしまうが、実は$\Phi$である必要は無く、単に双Hom関手であれば成り立つ。
+  \begin{define}[恒等プロモナド]
+    圏$\cat{C}$上の恒等プロモナドを$(\arset{C}{-}{-},\circ,ID_{\arset{C}{-}{-}})$とする。
+  \end{define}
+
+  次にこのモナドの応用としてアイレンベルグ-ムーア圏を定義する。またこの圏は代数の圏とも呼ばれ、これもまた関数型言語に応用されている。
+  \begin{define}[アイレンベルグ-ムーア圏]
+    圏$\cat{C}$上のモナド$(M,\eta,\mu)$に対するアイレンベルグ-ムーア圏(EM圏)$\cat{EM}(M)$を以下の要素で定義する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[対象] $\cat{C}$の対象$A$と以下の図式を可換にする射$\mor{\zeta}{MA}{A}$の組$(A,\zeta)$
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (2, -2) {$A$};
+            \node (TP) at (2, 0) {$MA$};
+            \node (TP2) at (0, -2) {$MA$};
+            \node (TTP) at (0, 0) {$M(MA)$};
+            \draw[double,double equal sign distance,-implies] (TP) to node{$\zeta$}(P);
+            \draw[double,double equal sign distance,-implies] (TP2) to node{$\zeta$}(P);
+            \draw[double,double equal sign distance,-implies] (TTP) to node{$M\zeta$}(TP);
+            \draw[double,double equal sign distance,-implies] (TTP) to node{$\mu$}(TP2);
+      
+            \node (P) at (6, 0) {$A$};
+            \node (TP) at (4, 0) {$MA$};
+            \node (P2) at (4, -2) {$A$};
+            \draw[double,double equal sign distance,-implies] (TP) to node{$\zeta$}(P);
+            \draw[double,double equal sign distance,-implies] (P2) to node{$\eta$}(TP);
+            \draw[double,double equal sign distance] (P) to(P2);
+          \end{tikzpicture}
+        \end{center}
+        \item[射]対象$(A,\zeta)$、$(B,\xi)$の間の射を、
+        \[Mf\circ\zeta = \mu\circ f\]を満たすような$\mor{f}{A}{B}$を射とする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+          \node (P) at (0, 0) {$MA$};
+          \node (Q) at (0, -2) {$MB$};
+          \node (TP) at (2, 0) {$A$};
+          \node (TQ) at (2, -2) {$B$};
+          \node (catpr) at (1, 1) {$\cat{C}$};
+
+          \draw[double,double equal sign distance,-implies] (P) to node{$f$}(Q);
+          \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
+          \draw[double,double equal sign distance,-implies] (TP) to node{$Mf$}(TQ);
+          \draw[double,double equal sign distance,-implies] (Q) to node{$\xi$}(TQ);
+
+          \node (P) at (4, 0) {$(A,\zeta)$};
+          \node (Q) at (4, -2) {$(B,\xi)$};
+          \draw[->] (P) to node{$f$}(Q);
+          \node (cattam) at (4, 1) {$\cat{EM}(M)$};
+        \end{tikzpicture}
+      \end{center}
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+
+  Profunctorの表現定理の証明において、\cite{profunctor_optics_update}のLemma 4.10.は重要な役割を果たしているが、証明の概略が示されているのみである。また\cite{doubles_for_monoidal}ではプロモナドと丹原加群の関係性について議論されるが、詳細な証明を発見できなかった。そのため特に重要と思われる以下の命題を証明する。
+
+  \begin{prop}[EM圏による関手圏の表現]\label{prop-representation-of-functor-category-as-em}
+    任意の圏$C$において\[\cat{EM}(\incat{1}{\arset{C}{-}{-}})\cong[\cat{C,Set}]\]
+    ただし$\profunctor{\arset{C}{-}{-}}{C}{C}$は恒等プロモナドであり、$\incat{1}{\arset{C}{-}{-}}$はプロモナドの合成によって定義されたモナドである。
+  \end{prop}
+  今回圏$\cat{C}$は豊穣圏であることを仮定していないため、図式の可換性は元の行き先を調べるだけで良いが、\cite{profunctor_optics_update}\cite{doubles_for_monoidal}に習って$\cat{Set}$に依存しないよう証明する。
+
+  \begin{proof}[対象の対応]
+    圏$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$の対象は、Profunctor $\profunctor{P}{1}{C}$と以下の図式を可換にする射$\mor{\zeta}{\arset{C}{-}{-}\diamond P}{P}$の組$(P,\zeta)$である。すなわち以下の図式が自然に可換になる。
+    ただし$\mor{j_A}{1}{\arset{C}{A}{A}}$は恒等射を与える定写像とする。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (P) at (4, -2) {$PC$};
+        \node (TP) at (4, 0) {$\arset{C}{B}{C}\times PB$};
+        \node (TP2) at (0, -2) {$\arset{C}{A}{C}\times PA$};
+        \node (TTP) at (0, 0) {$\arset{C}{B}{C}\times \arset{C}{A}{B}\times PA$};
+        \draw[->] (TP) to node{$\zeta$}(P);
+        \draw[->] (TP2) to node{$\zeta$}(P);
+        \draw[->] (TTP) to node{$\arset{C}{B}{C}\times\zeta$}(TP);
+        \draw[->] (TTP) to node{$\circ\times PA$}(TP2);
+  
+        \node (P) at (10, 0) {$PA$};
+        \node (TP) at (8, 0) {$\arset{C}{A}{A}\times PA$};
+        \node (P2) at (8, -2) {$PA$};
+        \draw[->] (TP) to node{$\zeta$}(P);
+        \draw[->] (P2) to node{$j_A\times PA$}(TP);
+        \draw[double,double equal sign distance] (P) to(P2);
+      \end{tikzpicture}
+    \end{center}
+    また\cite{BCECT}の関手の定義より、任意の関手$\functor{P}{C}{Set}$は対象関数\[\mor{P}{\obj{C}}{\obj{Set}}\]と、以下の図式を可換にするある射関数\[\mor{\widehat{\zeta}}{\arset{C}{A}{B}}{\inset{PA}{PB}}\]によって構成される。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (P) at (4, -2) {$\inset{PA}{PC}$};
+        \node (TP) at (4, 0) {$\inset{PB}{PC}\times \inset{PA}{PB}$};
+        \node (TP2) at (0, -2) {$\arset{C}{A}{C}$};
+        \node (TTP) at (0, 0) {$\arset{C}{B}{C}\times \arset{C}{A}{B}$};
+        \draw[->] (TP) to node{$\circ$}(P);
+        \draw[->] (TP2) to node{$\widehat{\zeta}$}(P);
+        \draw[->] (TTP) to node{$\widehat{\zeta}\times \widehat{\zeta}$}(TP);
+        \draw[->] (TTP) to node{$\circ$}(TP2);
+  
+        \node (P) at (10, 0) {$1$};
+        \node (TP) at (8, 0) {$\arset{C}{A}{A}$};
+        \node (P2) at (8, -2) {$\inset{PA}{PA}$};
+        \draw[->] (P) to node{$j_A$}(TP);
+        \draw[->] (TP) to node{$\widehat{\zeta}$}(P2);
+        \draw[->] (P) to node{$j_{PA}$}(P2);
+      \end{tikzpicture}
+    \end{center}
+    この二つの自然変換\[\mor{\zeta}{\arset{C}{A}{B}\times PA}{PB}\]\[\mor{\widehat{\zeta}}{\arset{C}{A}{B}}{\inset{PA}{PB}}\]をべき随伴による自然同型$\inset{A\times B}{C}\cong\inset{A}{\inset{B}{C}}$によって対応づけた時、それぞれの図式を可換にすることが同値であることを示す。
+
+    左側の二つの図式を$\zeta,\ \widehat{\zeta}$を元として取るような図式に変形すると、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (P) at (6, -2) {$\inset{\arset{C}{B}{C}\times \arset{C}{A}{B}\times PA}{PC}$};
+        \node (TP) at (6, 0) {$\inset{\arset{C}{B}{C}\times PB}{PC}$};
+        \node (TP2) at (0, -2) {$\inset{\arset{C}{B}{C}\times PB}{PC}$};
+        \node (TTP) at (0, 0) {$1$};
+        \draw[->] (TP) to node{$\inset{\arset{C}{B}{C}\times \zeta}{PC}$}(P);
+        \draw[->] (TP2) to node{$\inset{\circ\times PA}{PC}$}(P);
+        \draw[->] (TTP) to node{$\zeta$}(TP);
+        \draw[->] (TTP) to node{$\zeta$}(TP2);
+      \end{tikzpicture}
+    \end{center}
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (P) at (6, -2) {$\inset{\arset{C}{B}{C}\times \arset{C}{A}{B}}{\inset{PA}{PC}}$};
+        \node (TP) at (6, 0) {$\inset{\arset{C}{B}{C}\times \arset{C}{A}{B}}{\inset{PB}{PC}\times \inset{PA}{PB}}$};
+        \node (TP2) at (0, -2) {$\inset{\arset{C}{A}{C}}{\inset{PA}{PC}}$};
+        \node (TTP) at (0, 0) {$1$};
+        \draw[->] (TP) to node{$\inset{id}{\circ}$}(P);
+        \draw[->] (TP2) to node{$\inset{\circ}{\inset{PA}{PC}}$}(P);
+        \draw[->] (TTP) to node{$\widehat{\zeta}\times \widehat{\zeta}$}(TP);
+        \draw[->] (TTP) to node{$\widehat{\zeta}$}(TP2);
+      \end{tikzpicture}
+    \end{center}
+    となる。するとこの図式は自然同型$\inset{A\times B}{C}\cong\inset{A}{\inset{B}{C}}$によって一対一対応をすることが分かる。また左から下へ伸びる射の対応については、\cite{BCECT}の自己豊穣圏における射の合成の定義により成り立つ。
+
+    同様に右側の二つの図式を$\zeta,\ \widehat{\zeta}$を元として取るような図式に変形すると、
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (P) at (4, 0) {$1$};
+        \node (TP) at (0, 0) {$\inset{\arset{C}{A}{A}\times PA}{PA}$};
+        \node (P2) at (0, -2) {$\inset{1\times PA}{PA}$};
+        \draw[->] (P) to node{$\zeta$}(TP);
+        \draw[->] (TP) to node[swap]{$\inset{j_A\times PA}{PA}$}(P2);
+        \draw[->] (P) to node{$\lambda_A^{-1}$}(P2);
+
+        \node (P) at (10, 0) {$1$};
+        \node (TP) at (6, 0) {$\inset{\arset{C}{A}{A}}{\inset{PA}{PA}}$};
+        \node (P2) at (6, -2) {$\inset{1}{\inset{PA}{PA}}$};
+        \draw[->] (P) to node{$\widehat{\zeta}$}(TP);
+        \draw[->] (TP) to node[swap]{$\inset{j_A}{\inset{PA}{PA}}$}(P2);
+        \draw[->] (P) to node{$j_A$}(P2);
+      \end{tikzpicture}
+    \end{center}
+    これらの図式も同様にべき随伴によって一対一対応をすることが分かる。また左下へ伸びる射の対応については、\cite{BCECT}の自己豊穣圏における恒等射の定義により成り立つ。
+
+    これによって、任意の関手$\functor{P}{C}{Set}$と任意の自然変換$\zeta$に対して、組$(P,\zeta)$が$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$の対象になることと、$P$を対象関数とし$\widehat{\zeta}$を射関数とする関手が存在することは同値になる。よって$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$の対象と$\incat{C}{Set}$の対象は一対一対応をする。
+  \end{proof}
+  \begin{proof}[射の対応]
+    $\cat{EM}(\incat{1}{\arset{C}{-}{-}})$の射は、以下の図式を可換にする自然変換$\nat{\alpha}{P}{Q}$であった。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+      \node (P) at (-1, 0) {$\arset{C}{A}{B}\times PA$};
+      \node (Q) at (-1, -2) {$\arset{C}{A}{B}\times QA$};
+      \node (TP) at (2, 0) {$PB$};
+      \node (TQ) at (2, -2) {$QB$};
+      \node (catpr) at (0, 1) {$\cat{C}$};
+
+      \draw[->] (P) to node{$\arset{C}{A}{B}\times \alpha_A$}(Q);
+      \draw[->] (P) to node{$\zeta$}(TP);
+      \draw[->] (TP) to node{$\alpha_B$}(TQ);
+      \draw[->] (Q) to node{$\xi$}(TQ);
+
+      \node (P) at (4, 0) {$(P,\zeta)$};
+      \node (Q) at (4, -2) {$(Q,\xi)$};
+      \draw[->] (P) to node{$\alpha$}(Q);
+      \node (cattam) at (4, 1) {$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$};
+    \end{tikzpicture}
+  \end{center}
+  また、関手$\functor{F,G}{C}{Set}$の間の自然変換は\cite{BCECT}では以下の図式を可換にする射の族によって定義される。ただし$\cat{Set}$はカルテジアン閉であるから、射の合成を射写像に置き換えることができる。
+  \begin{center}
+    \begin{tikzpicture}[auto]
+    \node (cab) at (0, 0) {$\arset{C}{A}{B}$};
+    \node (pab) at (4, 0) {$\inset{PA}{PB}$};
+    \node (qab) at (0, -2) {$\inset{QA}{QB}$};
+    \node (paqb) at (4, -2) {$\inset{PA}{QB}$};
+    \draw[->] (cab) to node{$\widehat{\zeta}$}(pab);
+    \draw[->] (cab) to node{$\widehat{\xi}$}(qab);
+    \draw[->] (pab) to node{$\inset{PA}{\alpha_B}$}(paqb);
+    \draw[->] (qab) to node{$\inset{\alpha_A}{QB}$}(paqb);
+
+    \end{tikzpicture}
+  \end{center}
+  これらの図式を$\zeta,\ \widehat{\zeta}$を元として取るような図式に変形すると、
+  \begin{center}
+    \begin{tikzpicture}[auto]
+    \node (cab) at (0, 0) {$1$};
+    \node (pab) at (6, 0) {$\inset{\arset{C}{A}{B}\times PA}{PB}$};
+    \node (qab) at (0, -2) {$\inset{\arset{C}{A}{B}\times QA}{QB}$};
+    \node (paqb) at (6, -2) {$\inset{\arset{C}{A}{B}\times PA}{QB}$};
+    \draw[->] (cab) to node{$\zeta$}(pab);
+    \draw[->] (cab) to node{$\xi$}(qab);
+    \draw[->] (pab) to node{$\inset{\arset{C}{A}{B}\times PA}{\alpha_B}$}(paqb);
+    \draw[->] (qab) to node{$\inset{\arset{C}{A}{B}\times \alpha_A}{QB}$}(paqb);
+    \end{tikzpicture}
+  \end{center}
+  \begin{center}
+    \begin{tikzpicture}[auto]
+    \node (cab) at (0, 0) {$1$};
+    \node (pab) at (6, 0) {$\inset{\arset{C}{A}{B}}{\inset{PA}{PB}}$};
+    \node (qab) at (0, -2) {$\inset{\arset{C}{A}{B}}{\inset{QA}{QB}}$};
+    \node (paqb) at (6, -2) {$\inset{\arset{C}{A}{B}}{\inset{PA}{QB}}$};
+    \draw[->] (cab) to node{$\widehat{\zeta}$}(pab);
+    \draw[->] (cab) to node{$\widehat{\xi}$}(qab);
+    \draw[->] (pab) to node{$\inset{\arset{C}{A}{B}}{\inset{PA}{\alpha_B}}$}(paqb);
+    \draw[->] (qab) to node{$\inset{\arset{C}{A}{B}}{\inset{\alpha_A}{QB}}$}(paqb);
+    \end{tikzpicture}
+  \end{center}
+  となる。これらの図式も同様にべき随伴によって一対一対応するから、$\alpha$が$(P,\zeta),\ (Q,\xi)$の間の射であることと、$\alpha$が$\zeta$、$\xi$を射関数とする関手の間の自然変換であることは同値である。
+  よって$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$の射と$\incat{C}{Set}$の射は一対一対応をする。
+  \end{proof}
+  \begin{proof}
+    $\cat{EM}(\incat{1}{\arset{C}{-}{-}})$と$\incat{C}{Set}$の対象集合と射集合が同型になるから、$\cat{EM}(\incat{1}{\arset{C}{-}{-}})\cong\incat{C}{Set}$
+  \end{proof}
+  \cite{profunctor_optics_update}では$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$を$\cat{EM}(\Phi)$と表記していることに注意。また証明の簡略化のため、$\incat{1}{\arset{C}{-}{-}}$なるモナドのEM圏を考えたが、\cite{profunctor_optics_update}では一点離散圏$\cat{1}$を任意の圏$\cat{X}$に置き換えたものが紹介されている。
+
+  \section{Profunctor Optics}
+  \subsection{Profunctorの表現定理}
+  ProfunctorによってどのようにOpticsが一般化されるかを紹介するために次の命題を予め載せる。
+  \begin{prop}[Profunctorの表現可能定理]\label{prop-profunctor-representation-theorem}
+    \[\cend{Tamb}{P}\inset{P(S,S')}{P(A,A')}\cong \cat{Optic}_\cat{C}(A,A',S,S')\]
+  \end{prop}
+  $P$が属する圏$\cat{Tamb}$は丹原加群の圏であり、$P$は特殊なProfunctorである。
+  $P$についてもう少し説明すると、
+  まずモノイダル積関手$\mor{M\otimes -}{C}{C}$における射関数は\[\mor{M\otimes -}{\arset{C}{A}{A'}}{\arset{C}{M\otimes A}{M\otimes A'}}\]というような射であるが、これを双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$から拡張して\[\mor{\zeta_{A,A',M}}{P(A,A')}{P(M\otimes A, M\otimes A')}\]となるような射を考える。またモノイダル積関手の射関数では、射関数の自然性から$A,A'$に対して自然であったから$\zeta$にも$A,A'$に対する自然性を課す。さらに射$\mor{f}{M}{N}$に対してモノイダル積関手の間の自然変換$\nat{f\otimes -}{M\otimes -}{N\otimes -}$を考えることができたから、その成分に該当する$\zeta$にも$M$に対する自然性を課したい。しかし$P(M\otimes A,M\otimes A')$や$P(N\otimes A, N\otimes A')$は射集合ではないから代わりに超自然性を課す。
+
+  \begin{center}
+    \begin{tikzpicture}[auto]
+      \node (FG) at (0, 0) {$P(A,A')$};
+      \node (FAGA) at (5, 0) {$P(M\otimes A,M\otimes A')$};
+      \node (FBGB) at (0, -2) {$P(N\otimes A,N\otimes A')$};
+      \node (FAGB) at (5, -2) {$P(M\otimes A,N\otimes A')$};
+
+      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FAGA);
+      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FBGB);
+      \draw[->] (FAGA) to node{$P(id,f\otimes A')$}(FAGB);
+      \draw[->] (FBGB) to node{$P(f\otimes A,id)$}(FAGB);
+    \end{tikzpicture}
+  \end{center}
+  \begin{define}[丹原加群の圏]
+    対称モノイダル圏$\cat{C}$に対する圏$\cat{Tamb}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象]
+				以下の図式を可換にするようなProfunctor\ $\profunctor{P}{C}{C}$と自然変換$\zeta$の組$(P,\zeta)$
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P$};
+            \node (TP) at (6, 0) {$P(M\otimes-,M\otimes-)$};
+            \node (TP2) at (0, -2) {$P((N\otimes M)\otimes -,(N\otimes M)\otimes -)$};
+            \node (TTP) at (6, -2) {$P(N\otimes (M\otimes -),N\otimes (M\otimes -))$};
+            \draw[double,double equal sign distance,-implies] (P) to node{$\zeta_M$}(TP);
+            \draw[double,double equal sign distance,-implies] (P) to node{$\zeta_{N\otimes M}$}(TP2);
+            \draw[double,double equal sign distance,-implies] (TP) to node{$\Theta \zeta_N$}(TTP);
+            \draw[double,double equal sign distance,-implies] (TP2) to node{$P(a^{-1},a)$}(TTP);
+          \end{tikzpicture}
+        \end{center}
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P$};
+            \node (TP) at (4, 0) {$P(I\otimes -,I\otimes -)$};
+            \node (P2) at (4, -2) {$P$};
+            \draw[double,double equal sign distance,-implies] (P) to node{$\zeta_I$}(TP);
+            \draw[double,double equal sign distance,-implies] (TP) to node{$P(\lambda^{-1},\lambda)$}(P2);
+            \draw[double,double equal sign distance] (P) to(P2);
+          \end{tikzpicture}
+        \end{center}
+        
+        可換性による制約は$P(A,B)$を射関数$\arset{C}{A}{B}$と見なした時、射関数においてもモノイダル積の結合子、単位子が機能することを表している。
+
+				\item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
+        \[\int\alpha\cdot\zeta = \mu\cdot\alpha\]を満たすような$\nat{\alpha}{P}{Q}$とする。また、$\int\alpha$は任意の対象$A,A'$に対して\[\mor{\alpha_{M\otimes A, M\otimes A'}}{P(M\otimes A, M\otimes A')}{Q(M\otimes A, M\otimes A')}\]を成分とするような自然変換であり、このような自然変換は任意の$M$に対して定義されるためエンドの関手性より得られる。
+  
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P$};
+            \node (Q) at (0, -2) {$Q$};
+            \node (TP) at (3, 0) {$\cend{C}{M}P(M\otimes -, M\otimes -)$};
+            \node (TQ) at (3, -2) {$\cend{C}{M}Q(M\otimes -, M\otimes -)$};
+            \node (catpr) at (1.5, 1) {$\cat{Prof}$};
+  
+            \draw[double,double equal sign distance,-implies] (P) to node{$\alpha$}(Q);
+            \draw[double,double equal sign distance,-implies] (P) to node{$\zeta$}(TP);
+            \draw[double,double equal sign distance,-implies] (TP) to node{$\int\alpha$}(TQ);
+            \draw[double,double equal sign distance,-implies] (Q) to node{$\mu$}(TQ);
+  
+            \node (P) at (6, 0) {$(P,\zeta)$};
+            \node (Q) at (6, -2) {$(Q,\mu)$};
+            \draw[double,double equal sign distance,-implies] (P) to node{$\alpha$}(Q);
+            \node (cattam) at (6, 1) {$\cat{Tamb}$};
+  
+          \end{tikzpicture}
+        \end{center}
+          
+				\item[射の合成]射$\alpha,\ \int\alpha$の自然変換の垂直合成をそのまま$\cat{Tamb}$における射の合成とする。
+				\item[恒等射の存在]
+				射の合成と同様に恒等自然変換を$\cat{Tamb}$の恒等射とする。
+				\item[結合律] 省略
+				\item[単位元律] 省略
+			\end{mydescription}
+		\end{quote}
+  \end{define}
+  \begin{prop}\label{prop-cong-tamb-and-em-on-prof}
+    $\cat{Tamb}\cong\cat{EM}(\incatp{\cat{1}}{\Phi})$
+  \end{prop}
+  \begin{proof}
+    詳しくは\cite{profunctor_optics_update}\cite{doubles_for_monoidal}を参照。
+
+    一般的な証明の流れは、丹原加群があるコモナドの余EM圏であることを示し、そのコモナドを構成する関手の余連続性からプロモナド$\Phi$と同値であることを示す。また参考のため両者の対象がどのように対応するかを載せておく。
+    \begin{align*}
+      &\cend{C}{S,S'}\ \ \ \ \inset{\coend{C}{A,A'}\Phi(A,A',S,S')\times P(A,A')}{P(S,S')}\\
+      \cong&\cend{C}{A,A',S,S'}\inset{\Phi(A,A',S,S')\times P(A,A')}{P(S,S')}&\text{(反変Hom関手の余連続性)}\\
+      \cong&\cend{C}{A,A',S,S'}\inset{\Phi(A,A',S,S')}{\inset{P(A,A')}{P(S,S')}}&\text{(冪随伴の冪同型)}\\
+      \cong&\cend{C}{A,A',S,S',M}\inset{\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}}{\inset{P(A,A')}{P(S,S')}}&\text{($\Phi$の定義)}\\
+      \cong&\cend{C}{A,A',M}\inset{P(A,A')}{P(M\otimes A,M\otimes A')}&\text{($S,S'$に対する米田の補題の適用)}\\
+      \cong&\cend{C}{A,A'}\inset{P(A,A')}{\cend{C}{M}P(M\otimes A,M\otimes A')}&\text{(共変Hom関手の連続性)}
+    \end{align*}
+  \end{proof}
+  次にProfunctorの表現定理の核となる、Opticsの圏と丹原加群の圏の関係性を示す。
+  \begin{prop}\label{prop-cong-tamb-and-copre-optic}
+    \[\cat{Tamb}\cong\incat{Optic}{Set}\]
+  \end{prop}
+  \begin{proof}
+    それぞれ命題\ref{prop-cong-tamb-and-em-on-prof}、命題\ref{prop-optic-as-profunctor}、命題\ref{prop-representation-of-functor-category-as-em}により、
+    \[\cat{Tamb}\cong\cat{EM}(\incatp{\cat{1}}{\Phi})\cong\cat{EM}(\incatp{\cat{1}}{\arset{Optic}{-}{-}})\cong\incat{Optic}{Set}\]となる。
+  \end{proof}
+
+  \begin{prop}[二重米田の補題]
+    \[\arset{C}{A}{B}\cong\cend{\incat{C}{Set}}{F}\inset{FA}{FB}\]であり、$A,B$に対して自然。
+  \end{prop}
+  \begin{proof}
+    \begin{align*}
+      \cend{\incat{C}{Set}}{F}\inset{FA}{FB}
+      &\cong\cend{\incat{C}{Set}}{F}\inset{\arset{\incat{C}{Set}}{\arset{C}{A}{-}}{F}}{\arset{\incat{C}{Set}}{\arset{C}{B}{-}}{F}}&\text{(米田の補題)}\\
+      &\cong\arset{\incat{C}{Set}}{\arset{C}{B}{-}}{\arset{C}{A}{-}}&\text{(米田の原理)}\\
+      &\cong\arset{C}{A}{B}&\text{(米田の原理)}
+    \end{align*}
+  \end{proof}
+  \begin{proof}
+    \begin{align*}
+      &\cend{Tamb}{F}\inset{P(A,A')}{P(S,S')}\\
+      \cong&\cend{\incat{Optic}{Set}}{F}\inset{P(A,A')}{P(S,S')}\\
+      \cong&\arset{Optic}{(A,A')}{(S,S')}
+    \end{align*}
+  \end{proof}
+
+  \appendix
+
   \section{Haskellの基礎}
   \subsection{関数型}
   Haskellにも一般のプログラミングと同じようにデータ型が存在し、整数値を持つ\pr{Int}型や\pr{True}と\pr{False}を持つ\pr{Bool}型などがある。
@@ -87,7 +1355,7 @@
     -- True
   \end{lstlisting}
   例のために真理値を反転する関数\fpmor{not}{Bool}{Bool}を使用している。
-  
+
   このように関数の引数の型を任意の型\pr{a},\pr{b}に置き換えることで、様々な型の値に対応した関数を定義することができ、このような関数を多相関数と呼ぶ。
 
   このような多相関数は基本的に既存の多相関数の組み合わせによって定義される。この例であれば、\pr{apply}の定義に用いた\pr{f(x)}はすでにhaskell側によって多相関数\pr{(\$) :: (a -> b) -> a -> b}としてすでに定義されているため、定義することができた。
@@ -191,6 +1459,7 @@
   という関数を定義する。これは零除算が発生する場合\pr{Nothing}を返し、そうでない場合は\pr{Just}によって計算結果を\pr{Maybe}に包んで返している。
 
   これによって、\pr{Maybe Float}の値を用いて計算を行うときは、必ず\pr{Nothing}と\pr{Just}の場合分けが必要になり、他の言語でいうNullチェックが必要なことを型レベルで示していることになる。
+
   \section{圏論}
   関数型言語では関数という言葉が使われるように、型を属する値の集合、関数を値の集合から値の集合への写像とみなすことができる。集合を写像の視点から観察する場合、圏論によって一般化することが有効である場合が多い。そのため以降は型と関数の議論を圏論によってモデル化することを考える。
   \subsection{型と関数の圏}
@@ -649,833 +1918,8 @@
   \begin{proof}
     省略。
   \end{proof}
-  \section{Optics}
-  \subsection{LensとPrism}
-  Opticsの例としてLens、Prismを挙げる。
-
-  Lensはオブジェクト指向におけるフィールドと、それに対するセッター、ゲッターを一般化した概念である。例えばある型$S$が型$A$を内部に保持する時、$A$に関する操作としては二つの関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$が考えられる。
-  直感的には$set$は$S$と$A$を受け取って、$S$の内部の$A$の値を与えられた$A$に置き換えた、新しい$S$の値を返す関数である。また$get$は$S$の内部の$A$の値を返す関数である。
-  
-  例として\pr{Person}型の値が型の直積によって\pr{String}型の値を持つとする。この\pr{Person}の値の中の文字列を$set$、$get$を用いて記述する
-  \begin{lstlisting}
-    type Person = (String, Int)
-
-    set :: (Person, String) -> Person
-    set (p, s) = (s, snd p)
-    get :: Person -> String
-    get = fst
-
-    person :: Person
-    person = ("A",20)
-    -- >>> get person
-    -- "A"
-    -- >>> set (person, "B")
-    -- ("B",20)
-  \end{lstlisting}
-  ここでは直積型を用いて$S$の値が$A$の値を持つことを明示的に示したが、一般の場合ではそうは行かない。そのため$set,\ get$関数による等式で間接的に示す。
-  \[\mor{\pi_A = get\circ set}{S\times A}{A}\]
-  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]
-  \[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
-  １つ目の等式はある$A$の値に対して、$set$を用いてその値を$S$に入れ$get$で取り出した値が元の$A$と等しいことを示す。
-  ２つ目は$S$から$get$で取り出した$A$の値を$S$に$set$した時、元の$S$と一致することを示している。
-  ３つ目はある$S$に$A$を置き換えた時、その前の$A$が上書きされることを示している。
-
-  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$、不可能であればそのまま$S$を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
-  \begin{lstlisting}   
-    newtype Odd = Odd{toInt :: Integer} deriving Show
-    match :: Integer -> Either Integer Odd
-    match x = if odd x 
-      then Right (Odd x)
-      else Left x
-    review :: Odd -> Integer
-    review = toInt
-
-    -- >>> match 4
-    -- Left 4
-    -- >>> match 3
-    -- Right (Odd {toInt = 3})
-    -- >>> review (Odd 5)
-    -- 5
-  \end{lstlisting}
-  Lensと同様にPrismでも、包含関係を間接的に示すのに$review,\ match$関数を用いた等式で示す。また等式における$[id_S,review]$は積における射の対の双対である。
-  \[match\circ review = \iota_A\mor{}{A}{S+A}\]
-  \[[id_S,review]\circ match = id_S\mor{}{S}{S}\]
-  １つ目の等式は$A$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが最初の$A$を$S+A$に入射したものと一致することを示している。
-  ２つ目の等式は$S$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なったものが最初の$S$と一致し、ダウンキャストが失敗した場合も最初の$S$と一致することを示している。
-  
-  ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(S,A)$、Prismの$\mor{review}{A}{S}$と$\mor{match}{S}{S+A}$の組の全体を$Prism(S,A)$と表記することにしよう。これはHaskellにおいてはそのような多相型を定義することである。
-  \begin{lstlisting}
-    data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
-    data Prism s a = Prism{review :: a -> s , match :: s -> Either s a}
-    -- >>> :t Lens
-    -- Lens :: (s -> a) -> ((s, a) -> s) -> Lens s a
-    -- >>> :t Prism
-    -- Prism :: (a -> s) -> (s -> Either s a) -> Prism s a
-  \end{lstlisting}
-
-  また$Lens(S,A)$における$get$関数を$get_{S,A}$と表記する。また$set$関数やPrismにおいても同様に表記する。
-  
-  これによってLensの合成$\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}$が定義を行う。
-  \begin{define}\label{def-comp-of-lens}
-    \[\mor{\circ}{Lens(S,A)\times Lens(T,S)}{Lens(T,A)}\]なる関数$\circ$を
-    任意の$\mor{set_{T,S}}{T\times S}{T}, \mor{get_{T,S}}{T}{S},\ \mor{set_{S,A}}{S\times A}{S},\ \mor{get_{S,A}}{S}{A}$に対して
-    \begin{align*}
-      get_{T,A}&=get_{S,A}\circ get_{T,S}\\
-      set_{T,A}&=set_{T,S}\circ(id_T\times set)\circ a_{TSA}\circ(\tuple{id_T, get_{T,S}}\times id_A)
-    \end{align*}
-    と定義する。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (TA) at (0, 0) {$T\times A$};
-        \node (TSpA) at (4, 0) {$(T\times S)\times A$};
-        \node (TpSA) at (8, 0) {$T\times (S\times A)$};
-        \node (TS) at (12, 0) {$T\times S$};
-        \node (T) at (14, 0) {$T$};
-
-				\draw[->] (TA) to node{\scriptsize$\tuple{id_T,get_{T,S}}\times id_A$}(TSpA);
-        \draw[->] (TSpA) to node{$a_{TSA}$}(TpSA);
-        \draw[->] (TpSA) to node{$id_T\times set_{S,A}$}(TS);
-        \draw[->] (TS) to node{$set_{T,S}$}(T);
-
-      \end{tikzpicture}
-    \end{center}
-  \end{define}
-  $set_{T,A}$の定義が複雑かもしれないが、単に$T$から$S$を取り出し、$S$に$A$を与えてその$S$をまた$T$に戻しているだけである。
-
-  またLensの合成において恒等射のような働きをするLensも定義できる。
-  \begin{define}[恒等Lens]\label{def-identity-lens}
-    \begin{align*}
-      get_{S,S} &= id_S\\
-      set_{S,S} &= \pi_{L,S\times S}
-    \end{align*}
-  \end{define}
-  PrismにおいてもLensと同様に合成が定義できる。
-  \subsection{Opticsへの一般化}
-  Opticsを構成するための圏論の概念としてコエンドを定義する。
-  \begin{define}[コエンド]\label{def-coend}
-    ある圏$\cat{C,D}$と、関手$\functor{F}{C^{op}\times C}{D}$に対するコエンド$(\coend{C}{C} F(C,C),\kappa)$を以下のように構成する。
-    \begin{quote}
-      \begin{mydescription}
-        \item[余楔] 余楔と呼ばれる組$(Y,\mu)$を、圏$\cat{D}$のある対象$Y$と、
-        圏$\cat{C}$の任意の対象$X$に対して$\mor{\mu_C}{Y}{F(X,X)}$なる射が存在し、圏$\cat{C}$の任意の射$\mor{f}{B}{A}$に対して$\mu_A\circ F(A,f)=\mu_B\circ F(f,B)$が成り立つような$\mu$によって構成する。
-        \begin{center}
-          \begin{tikzpicture}[auto]
-            \node (FG) at (0, 0) {Y};
-            \node (FAGA) at (3, 0) {$F(A,A)$};
-            \node (FBGB) at (0, -2) {$F(B,B)$};
-            \node (FAGB) at (3, -2) {$F(A,B)$};
-    
-            \draw[<-] (FG) to node{$\mu_A$}(FAGA);  
-            \draw[<-] (FG) to node{$\mu_B$}(FBGB);
-            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
-            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
-          \end{tikzpicture}
-        \end{center}
-        \item[普遍性] ある余楔$(\coend{C}{C}F(C,C),\kappa)$が$F$に対してコエンドであるとは、余楔$(Y,\mu)$が存在して、任意の対象$X$において$\mu=h\circ \kappa_X$が成り立つような$\mor{h}{\coend{C}{C} F(C,C)}{Y}$が一意に存在する時である。
-        また、$\kappa$を余積の場合と紛らわしくない場合は入射と呼ぶことにする。
-        \begin{center}
-          \begin{tikzpicture}[auto]
-            \node (FG) at (0, 0) {$\coend{C}{C} F(C,C)$};
-            \node (X) at (-1.5, 1) {$Y$};
-            \node (FAGA) at (3, 0) {$F(A,A)$};
-            \node (FBGB) at (0, -2) {$F(B,B)$};
-            \node (FAGB) at (3, -2) {$F(A,B)$};
-    
-            \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
-            \draw[<-] (X) to node{$h$}(FG);
-    
-            \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
-            \draw[<-,bend left = 20] (X) to node{$\mu_A$}(FAGA);
-            \draw[<-,bend right = 20] (X) to node[swap]{$\mu_B$}(FBGB);
-            \draw[<-] (FAGA) to node{$F(A,f)$}(FAGB);
-            \draw[<-] (FBGB) to node{$F(f,B)$}(FAGB);
-          \end{tikzpicture}
-        \end{center}
-      \end{mydescription}
-    \end{quote}
-  \end{define}
-  コエンドの普遍性は$\coend{C}{C} F(C,C)$が圏$C$の任意の対象に対する$F(C,C)$の余積であることを示していて、$F(A,B)$の元に対し$f$を$A$と$B$のどちらに適用しても入射によって示されるということである。
-  
-  余積という部分をもう少し詳しく見ると、$F(A,A)$から$Y$への射の族$\mu$は同様の射の族$\kappa$によって単なる射$h$へと分解される。同様に$\kappa$が他の単なる射によって分解されるかといえば、コエンドの普遍性からそのような射の族は$\kappa$以外には存在しないと言える。そういった意味で$(\coend{C}{C} F(C,C),\kappa)$は余楔の中で、射の族としての最小限の性質のみを持っていると考えられる。
-
-  コエンドもHaskellで定義できる
-  \begin{lstlisting}
-    {-# LANGUAGE ExistentialQuantification #-}
-    data Coend p = forall a. Coend (p a a)
-    -- >>> :t Coend
-    -- Coend :: p a a -> Coend p
-  \end{lstlisting}
-  \pr{Coend}の値コンストラクタを見ると、\pr{p a a}から\pr{Coend p}へ写る過程で型引数\pr{a}の情報を忘れてしまっている。そのため一度\pr{Coend}に写してしまうと、元の型に復元することはできなくなり、一般的には一切の操作が行えなくなってしまう。そういった意味でこれは任意の型\pr{a}で添字付けられた\pr{p a a}の直和であるように思える。
-
-  コエンドに限らずこういった定義の手法を存在量化と呼ぶが、実用の面では最低限操作が行えることを保証するために\pr{a}の型に制約を加えることが多い。
-
-  次にコエンドとエンドの関係性についての重要な命題を示す。
-  \begin{prop}\label{prop-preservation-coend-by-hom-functor}
-    \[\arset{Set}{\coend{C}{C} T(C,C)}{X}\cong\cend{C}{C}\arset{Set}{T(C,C)}{X}\]であり、$X,T$に対して自然。
-  \end{prop}
-  \begin{proof}
-    反変Hom関手は余連続であるから余極限を保つ。またエンドは極限によって定義できるように、コエンドも余極限によって定義できる。これによってコエンドは反変Hom関手によって保たれるが、反変性よりコエンドの双対であるエンドとして保たれる。
-  \end{proof}
-  \begin{define}[Optics]\label{def-optics}
-    対称モノイダル圏$\cat{C}$における組$(S,S')$、$(A,A')$の間のOpticの集合を
-    \[Optic_\cat{C}(S,S',A,A')=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]と定義する。
-    また、$\kappa_M(l,r)$となる$Optic_\cat{C}(S,S',A,A')$の元を、紛らわしくない場合に$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$と表記する。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (FG) at (0, 0) {$\coend{C}{C} \arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
-        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}$};
-        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
-        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A'}{S'}$};
-
-        \draw[<-] (FG) to node{$\kappa_A$}(FAGA);
-        \draw[<-] (FG) to node{$\kappa_B$}(FBGB);
-        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A'}{S'}$}(FAGB);
-        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
-      \end{tikzpicture}
-    \end{center}
-  \end{define}
-  この定義におけるコエンドの普遍性は、$\arset{C}{S}{M\otimes A}\times \arset{C}{N\otimes A'}{S'}$の元$\tuple{l,r}$に対し、
-  \[\kappa_N((f\otimes A)\circ l, r)=\kappa_M(l, r(f\otimes A'))\]が成り立つような$\kappa$を入射とする$\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}$の余積である。
-
-  \begin{prop}
-    任意のOptics$\kappa_M\tuple{l,r}$と、$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\[\kappa_M\tuple{l,r} = \kappa_N\tuple{(f\otimes A)l,r(f^{-1}\otimes A)}\]である。また$f$は必ずしも同型射である必要はない。
-  \end{prop}
-
-  次にOpticsがLens、Prismの一般化であることを示したいが、そのために余米田の補題が必要であるためここで示す。
-
-  \begin{define}[余米田の補題]\label{def-coyoneda-lemma}
-    任意の圏$\cat{C}$と対象$A$と関手$\functor{F}{C}{Set}$において
-    \[FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}\]
-    またここでの積分記号はエンドではなくコエンドである。
-  \end{define}
-  \begin{proof}
-    米田の原理より、\[A\cong B\iff\arset{C}{A}{-}\cong\arset{C}{B}{-}\]であるから、$\arset{Set}{FA}{X}\cong\arset{Set}{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}$が$X$に対して自然に成り立つことを示せば良い。またコエンドは関手であるから、同型を保つ。
-    \begin{align*}
-      \arset{Set}{\coend{C}{C} FC\times\arset{C}{C}{A}}{X}&\cong\cend{C}{C}\arset{Set}{FC\times\arset{C}{C}{A}}{X}&\text{(反変Hom関手の余極限の保存)}\\
-      &\cong\cend{C}{C}\arset{Set}{\arset{C}{C}{A}\times FC}{X}&\text{(積の交換)}\\
-      &\cong\cend{C}{C}\arset{Set}{\arset{C}{C}{A}}{\arset{Set}{FC}{X}}&\text{(べき随伴の射集合同型)}\\
-      &\cong\arset{Set}{FA}{X}&\text{(反変米田の補題)}
-    \end{align*}
-    よってである。計算のために使用した同型はすべて$X,F,A$に対して自然であるから、$FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}$が成り立ち、$F,A$に対して自然である。
-  \end{proof}
-  また同様の方法で$F$に反変関手を取る場合も証明できる。
-  すなわち、任意の関手$\functor{F}{C^{op}}{Set}$と対象$A$に対して
-  \[FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}\]が成り立つ。
-
-  余米田の補題によれば、$FA$が$FC\times\arset{C}{C}{A}$を与える関手のコエンドとなるということであるが、具体的な入射の構成は不明である。余楔を用いた証明も思いつくが、$\cat{H}$が余積を持つことの証明のようにコエンドの元を列挙できないため、この方法では難しい。そのため厳密な証明では無いが直接同型射を構成して証明しよう。
-  \begin{prop}
-    $\coend{C}{C} FC\times\arset{C}{C}{A}$の任意の元$x$は入射$\kappa$によって与えられるとする。すなわち$x = \kappa_B(b,f)$となるようなある対象$B$とある元$b$、ある射$\mor{f}{B}{A}$の対$\tuple{b,f}$が一意に存在するとする。この時、$FA\cong\coend{C}{C} FC\times\arset{C}{C}{A}$が成り立つ。
-  \end{prop}
-  \begin{proof}
-    同型射$\mor{\phi}{FA}{\coend{C}{C} FC\times\arset{C}{C}{A}}$、$\mor{\phi^{-1}}{\coend{C}{C} FC\times\arset{C}{C}{A}}{FA}$を以下のように定義する
-    \begin{align*}
-      \phi(a) &= \kappa_A(a,id_A)\\
-      \phi^{-1}(x) &= \phi^{-1}(\kappa_B(b,f)) = Ffb
-    \end{align*}
-    すると、
-    \begin{align*}
-      \phi\circ\phi^{-1}(\kappa_B(b,f))&=\phi(Ffb)\\
-      &=\kappa_A(Ffb,id_A)\\
-      &=\kappa_B(b,f)&\text{(余楔の定義)}\\
-      \phi^{-1}\circ\phi(a) &= \phi^{-1}(\kappa_A(a,id_A))\\
-      &=a
-    \end{align*}
-    となるから、$\phi\circ\phi^{-1}=id,\ \phi^{-1}\circ\phi=id_{FA}$が成り立ち$FA\cong\coend{C}{C}FC\times \arset{C}{A}{C}$となる。
-  \end{proof}
-
-  同型射を具体的な構成によって定義できたため、Haskellでも定義できるようになった。
-  \begin{lstlisting}
-    {-# LANGUAGE ExistentialQuantification #-}
-    data Coend p = forall a. Coend (p a a)
-
-    data CoyonedaRaw f a c b = CoyonedaRaw (f c) (b -> a)
-    type Coyoneda f a = Coend (CoyonedaRaw f a)
-
-    toCoyoneda :: f a -> Coyoneda f a
-    toCoyoneda x = Coend (CoyonedaRaw x id)
-
-    fromCoyoneda ::Functor f => Coyoneda f a -> f a
-    fromCoyoneda (Coend(CoyonedaRaw x y)) = fmap y x
-
-    data CoyonedaRaw' f a c b = CoyonedaRaw' (f c) (a -> b)
-    type Coyoneda' f a = Coend (CoyonedaRaw' f a)
-
-    toCoyoneda' :: f a -> Coyoneda' f a
-    toCoyoneda' x = Coend (CoyonedaRaw' x id)
-
-    fromCoyoneda' :: Contravariant f => Coyoneda' f a -> f a
-    fromCoyoneda' (Coend(CoyonedaRaw' x y)) = contramap y x
-  \end{lstlisting}
-
-  \begin{prop}\label{prop-lens-is-optics}
-    $Optic_{\cat{H},\times}(S,S',A,A')$をOpticの定義のモノイダル積$\otimes$を直積型である積$\times$に置き換えたものとする。すると、
-    \[Optic_{\cat{H},\times}(S,S,A,A) = Lens(S,A)\]である。
-  \end{prop}
-  \begin{proof}
-    \begin{align*}
-      \coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}&\cong\coend{C}{M}\arset{C}{S}{M}\times \arset{C}{S}{A}\times \arset{C}{M\otimes A}{S}&\text{(共変Hom関手の積の保存)}\\
-      &\cong\arset{C}{S}{A}\times \arset{C}{S\times A}{S}&\text{(余米田の補題)}\\
-    \end{align*}
-  \end{proof}
-  同様にPrismもOpticで表せる。
-  \begin{prop}\label{prop-prism-is-optics}
-    \[Optic_{\cat{C},+}(S,S,A,A) = Prism(S,A)\]である。
-  \end{prop}
-  \begin{proof}
-    \begin{align*}
-      \coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M+A}{S}&\cong\coend{C}{M}\arset{C}{S}{M+A}\times \arset{C}{M}{S}\times \arset{C}{A}{S}&\text{(反変Hom関手の余積の保存)}\\
-      &\cong\arset{C}{S}{S+A}\times \arset{C}{A}{S}&\text{(余米田の補題)}\\
-    \end{align*}
-  \end{proof}
-  この計算も具体的な操作によって行なっているため、Haskellで記述することができる。また紙面の関係上Lensのみを示す。
-  \begin{lstlisting}
-  coendFmap :: forall p q. (forall a. p a a -> q a a) 
-  -> Coend p -> Coend q
-  coendFmap f (Coend p) = Coend (f p)
-  
-  data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
-
-  opticToLens :: Optic s s a a (,) -> Lens s a
-  opticToLens x = toLens $ fromCoyoneda' (coendFmap f x) where
-
-    f :: OpticRaw s s a a (,) m n 
-    -> CoyonedaRaw' (PseudoLens s a) s m n
-    f (OpticRaw l r) = CoyonedaRaw' (PseudoLens (snd (outProduct l)) r)
-    (fst (outProduct l)) 
-
-    toLens :: PseudoLens s a s -> Lens s a
-    toLens (PseudoLens x y) = Lens x y
-
-  lensToOptic :: Lens s a -> Optic s s a a (,)
-  lensToOptic (Lens get set) =coendFmap f 
-  (toCoyoneda'(PseudoLens get set)) where
-
-    f :: CoyonedaRaw' (PseudoLens s a) s m n -> OpticRaw s s a a (,) m n
-    f (CoyonedaRaw' (PseudoLens g s) y) = OpticRaw (inProduct (y, g)) s
-
-  data PseudoLens s a m = PseudoLens{g :: s -> a , s :: (m, a) -> s}
-
-  instance Contravariant (PseudoLens s a) where
-    contramap :: (c -> b) -> PseudoLens s a b -> PseudoLens s a c
-    contramap f (PseudoLens x y) = PseudoLens x (y.first f)
-  \end{lstlisting}
-  ここでの\pr{coendFmap}は、双関手間の自然変換\[\natf{\alpha}{P}{Q}{H\times H}{H}\]をコエンド間の射\[\mor{\displaystyle\int\alpha}{\coend{H}{C}P(C,C)}{\coend{H}{C}Q(C,C)}\]へと写す射関数である。コエンドを取る操作が関手であることは、コエンドを構成する余極限を取る操作が関手であることからわかる。
-
-
-  またこの同型によって、Lensを構成する関数$\mor{set}{S\times A}{S}$、$\mor{get}{S}{A}$からOptics$\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A}{S}$の値に変換するかを見ることができる。実際に逆にたどると、
-  \begin{align*}
-    &\tuple{get,set}&:&\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
-    \intertext{$F(M)=\arset{C}{S}{A}\times \arset{C}{M\times A}{S}$とすると、}
-    =&\tuple{get,set}&:&F(S)\\
-    \intertext{余米田の補題の$\phi(a)=\kappa_A(a,id_A)$より、}
-    \rightarrow&\kappa_S(\tuple{get,set},id_S)&:&\coend{C}{M}F(M)\times \arset{C}{S}{M}\\
-    \intertext{表記を変えて}
-    =&\kappa_S(get,set,id_S)&:&\coend{C}{M}\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\times \arset{C}{S}{M}\\
-    \rightarrow&\kappa_S(id_S,get,set)&:&\coend{C}{M}\arset{C}{S}{M}\times\arset{C}{S}{A}\times \arset{C}{S\times A}{S}\\
-    \intertext{$\mor{id_S}{S}{S}$、$\mor{get}{S}{A}$であるから射の対$\mor{\tuple{id_S,get}}{S}{S\times A}$を取って、}
-    \rightarrow&\kappa_S(\tuple{id_S,get},set)&:&\coend{C}{M}\arset{C}{S}{M\times A}\times \arset{C}{M\times A}{S}
-  \end{align*}
-  というように$Optic(S,S,A,A)_{\cat{C},\times}$の値が得られる。ここでの$\kappa_S(\tuple{id_S,get},set)$は\[\tuple{\tuple{id_S,get},set}:\arset{C}{S}{S\times A}\times \arset{C}{S\times A}{S}\]をコエンドへ入射したものであり、Lensの場合は$M=S$となることが分かった。これにより、Opticは与えられた$S$を$\mor{l}{S}{M\otimes A}$によって$M$と$A$に分解し、$\mor{r}{M\otimes A}{S}$によって新たに与えられた$A$と、$l$によって得られた$M$からまた$S$を再構成する。といった流れになっていることが分かる。またこの解釈は\[Optic(S,S',A,A')_{\cat{C}}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\]でも問題なく機能する。
-  \subsection{Opticsの圏論的性質}
-  Lens、Prismの合成と同様にOpticの合成\[\mor{\circ}{Optic_{\cat{C}}(S,S',A,A')\times Optic_{\cat{C}}(T,T',S,S')}{Optic_{\cat{C}}(T,T',A,A')}\]を考える。
-  \begin{prop}[フビニの定理]\label{prop-fubini-theorem}
-    \[\cend{C}{C}\ \ \ \ \cend{D}{D}T(C,C,D,D)\cong\cend{C\times D}{C,D}T(C,C,D,D)\]
-    \[\coend{C}{C}\ \ \ \ \coend{D}{D}T(C,C,D,D)\cong\coend{C\times D}{C,D}T(C,C,D,D)\]
-  \end{prop}
-  \begin{proof}
-    省略。エンドが右随伴関手であり、その一意性により示せる。
-  \end{proof}
-  \begin{prop}[積のコエンドの保存]\label{prop-preservation-of-coend-by-product}
-    関手$\functor{T,S}{C^{op}\times C}{Set}$において
-    \[\coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)\]であり$T,S$に対して自然。
-  \end{prop}
-  \begin{proof}
-    前提として、$\cat{Set}$においてもべき随伴$(-\times B)\dashv(-)^B$が成り立つから、$(-\times B)$は左随伴関手であり余連続である。
-    \begin{align*}
-      \coend{C}{C}T(C,C)\times \coend{C}{D}S(D,D)&\cong\coend{C}{C}(T(C,C)\times \coend{C}{D}S(D,D))&\text{(積関手の余連続性)}\\
-      &\cong\coend{C}{C}(\coend{C}{D}S(D,D)\times T(C,C))&\text{(積関手の余連続性)}\\
-      &\cong\coend{C}{C}(\coend{C}{D}T(C,C)\times S(D,D))&\text{(積の交換則)}\\
-      &\cong\coend{C\times C}{C,D}T(C,C)\times S(D,D)&\text{(フビニの定理)}
-    \end{align*}
-  \end{proof}
-  \begin{define}[Opticの合成]\label{def-comp-of-optic}
-    Opticの合成{\scriptsize\[\mor{\circ}{\coend{C\times C}{M,N}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を定義するが、コエンドの普遍性より、
-    \[\mor{\circ_{MN}}{\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]
-    を各$M,N$に対して$\circ_{MN}$を定義できれば$\circ$は一意に定まる。
-
-    \[\tuple{l,r}\circ_{MN}\tuple{l',r'}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]によって$\circ$を定義する。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (T) at (0, 0) {$T$};
-        \node (NS) at (2, 0) {$N\otimes S$};
-        \node (NMA) at (5, 0) {$N\otimes (M\otimes A)$};
-        \node (NMA') at (9, 0) {$(N\otimes M)\otimes A$};
-
-        \draw[->] (T) to node{$l'$}(NS);
-        \draw[->] (NS) to node{$N\otimes l$}(NMA);
-        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
-
-        \node (T) at (0, -1) {$T'$};
-        \node (NS) at (2, -1) {$N\otimes S'$};
-        \node (NMA) at (5, -1) {$N\otimes (M\otimes A')$};
-        \node (NMA') at (9, -1) {$(N\otimes M)\otimes A'$};
-
-        \draw[<-] (T) to node{$r'$}(NS);
-        \draw[<-] (NS) to node{$N\otimes r$}(NMA);
-        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
-
-      \end{tikzpicture}
-    \end{center}
-    このようにOptic同士の合成はつなげると言うよりかは、埋め込むという印象の方が強い。
-  \end{define}
-  \begin{define}[恒等Optic]\label{def-identity-optic}
-    任意の対象$S,S'$に対する恒等Opticを、モノイダル圏の左単位子$\mor{\lambda_S^{-1}}{S}{I\otimes S}$、$\mor{\lambda_{S'}}{I\otimes S}{S}$によって、
-    \[id_{S,S'}=\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]と定義する。
-  \end{define}
-  \begin{prop}[Opticの結合則]\label{prop-associativity-of-optic}
-    任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')},\ \mor{\tuple{l',r'}}{(T,T')}{(S,S')},\ \mor{\tuple{l'',r''}}{(R,R')}{(T,T')}$に対して、
-    \[(\tuple{l,r}\circ\tuple{l',r'})\circ\tuple{l'',r''}=\tuple{l,r}\circ(\tuple{l',r'}\circ\tuple{l'',r''})\]が成り立つ。
-  \end{prop}
-  \begin{proof}
-    Opticの合成と同様に、フビニの定理より三つのコエンドを一つのコエンドとして計算できる。またモノイダル積関手の射の合成の保存より、適当に展開すれば簡単に示せる。
-  \end{proof}
-  \begin{prop}[Opticの単位元則]\label{prop-optic-has-identity}
-    任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$に対して、
-    \[\tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}=\tuple{l,r}\]
-    \[\tuple{l,r}\circ\tuple{\lambda_S^{-1},\lambda_{S'}}=\tuple{l,r}\]
-    が成り立つ。
-  \end{prop}
-  \begin{proof}
-    左単位子の振る舞いを観察するために前者は実際に示そう。
-    \begin{align*}
-      \tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}
-      &=\tuple{a^{-1}_{MIA}\circ(M\otimes\lambda_A^{-1})\circ l, r\circ(M\otimes\lambda_{A'})\circ a_{MIA'}}&\text{(Opticの合成の定義)}\\
-      &=\tuple{(\rho_M^{-1}\otimes A)\circ l,r\circ(\rho_M\otimes A')}&\text{(モノイダル圏の三角恒等式)}\\
-      &=\tuple{l,r\circ (\rho_M\otimes A')\circ(\rho_M^{-1}\otimes A')}&\text{(余楔の定義)}\\
-      &=\tuple{l,r}
-    \end{align*}
-    またモノイダル圏の三角恒等式を使用する場面においては$l$の方の図式を示しておく。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (S) at (0, 0) {$S$};
-        \node (MA) at (2, 0) {$M\otimes A$};
-        \node (MIA) at (5, 0) {$M\otimes (I\otimes A)$};
-        \node (MIA') at (5, -2) {$(M\otimes I)\otimes A$};
-        \draw[->] (S) to node{$l$}(MA);
-        \draw[->] (MA) to node{$M\otimes\lambda_A^{-1}$}(MIA);
-        \draw[->] (MIA) to node{$a^{-1}_{MIA}$}(MIA');
-        \draw[->] (MA) to node[swap]{$\rho^{-1}\otimes A$}(MIA');
-
-      \end{tikzpicture}
-    \end{center}
-  \end{proof}
-  これによって圏の公理をひと通り示せたから、実際にOpticsの圏が定義できる。
-  \begin{define}[Opticsの圏]\label{def-cat-of-optics}
-    対称モノイダル圏$\cat{C}$上の圏$\cat{Optic_C}$を以下のように定義する。
-    \begin{quote}
-			\begin{mydescription}
-				\item[対象] 対象の集合を$\obj{Optic_C}=\obj{C}\times \obj{C}$とする。これは単に圏$\cat{C}$の対象の組である。
-				\item[射] 任意の対象$(S,S'), (A,A')$に対する射集合を\[\arset{Optic_C}{(S,S')}{(A,A')}=\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A'}{S'}\]とする。射集合の元である射$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$はそのままOpticである。
-				\item[射の合成] 定義\ref{def-comp-of-optic}を射の合成とする。
-				すなわち射{\scriptsize\[\mor{\circ}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S'}\times\coend{C}{N} \arset{C}{T}{N\otimes S}\times\arset{C}{N\otimes S'}{T'}}{\coend{C}{M\otimes N}\arset{C}{T}{(M\otimes N)\otimes A}\times \arset{C}{(M\otimes N)\otimes A'}{T'}}\]}を射の合成を行う写像とみなすということである。またこの写像は、ある対象$M,N$に対して
-        \[\tuple{l,r}\circ_{MN}\tuple{l',r'}=\tuple{a_{NMA}^{-1}\circ(N\otimes l)\circ l',r'\circ(N\otimes r)\circ a_{NMA'}^{-1}}\]
-        となるような操作だった。
-				\item[恒等射の存在] 定義\ref{def-identity-optic}を恒等射とする。これも任意の対象$(S,S')$に対して\[\kappa_I(\lambda_S^{-1},\lambda_{S'}):\coend{C}{M}\arset{C}{S}{M\otimes S}\times \arset{C}{M\otimes S'}{S'}\]を恒等射とみなすということである。
-				\item[結合律] 命題\ref{prop-associativity-of-optic}より、任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')},\ \mor{\tuple{l',r'}}{(T,T')}{(S,S')},\ \mor{\tuple{l'',r''}}{(R,R')}{(T,T')}$に対して、
-        \[(\tuple{l,r}\circ\tuple{l',r'})\circ\tuple{l'',r''}=\tuple{l,r}\circ(\tuple{l',r'}\circ\tuple{l'',r''})\]が成り立つ。
-				\item[単位元律] 命題\ref{prop-optic-has-identity}より、任意のOptic$\mor{\tuple{l,r}}{(S,S')}{(A,A')}$に対して、
-        \[\tuple{\lambda_A^{-1},\lambda_{A'}}\circ\tuple{l,r}=\tuple{l,r}\]
-        \[\tuple{l,r}\circ\tuple{\lambda_S^{-1},\lambda_{S'}}=\tuple{l,r}\]
-        が成り立つ。
-			\end{mydescription}
-		\end{quote}
-  \end{define}
-  Opticが圏になることを示したから、それらの操作がLensのものと一致することを調べる。
-  \begin{prop}
-    Lensの合成と、Opticを経由したLensの合成は一致する。
-  \end{prop}
-  \begin{proof}
-    任意のLensから変換されたOptic\[\mor{\tuple{\tuple{id_S,get_{SA}},set_{SA}}}{(S,S)}{(A,A)}\]
-    \[\mor{\tuple{\tuple{id_T,get_{TS}},set_{TS}}}{(T,T)}{(S,S)}\]の合成を計算し、これをLensに変換する。
-
-    合成されたOpticにおける左側の射$l$は、
-    \begin{center}
-      \begin{tikzpicture}[auto]
-
-        \node (T) at (0, -1) {$T$};
-        \node (NS) at (3, -1) {$N\times S$};
-        \node (NMA) at (7, -1) {$N\times (M\times A)$};
-        \node (NMA') at (10, -1) {$(N\times M)\times A$};
-
-        \draw[->] (T) to node{$\tuple{id_T,get_{TS}}$}(NS);
-        \draw[->] (NS) to node{$N\times \tuple{id_S,get_{SA}}$}(NMA);
-        \draw[->] (NMA) to node{$a_{NMA}^{-1}$}(NMA');
-      \end{tikzpicture}
-    \end{center}
-    \[l = a\circ(id_T\times\tuple{id_S,get_{SA}})\circ\tuple{id_T,get_{TS}}\]となるが、これは少し簡約できる。
-    \begin{align*}
-      &a\circ(id_T\times\tuple{id_S,get_{SA}})\circ\tuple{id_T,get_{TS}}\\
-      &=a\circ\tuple{id_T,\tuple{id_S,get_{SA}\circ get_{TS}}}&\text{(射の積の定義と対の分配則)}\\
-      &=a\circ\tuple{id_T,\tuple{get_{TS},get_{SA}\circ get_{TS}}}&\text{(射の対の分配則)}\\
-      &=\tuple{\tuple{id_T,get_{TS}},get_{SA}\circ get_{TS}}&\text{(結合子の定義)}\\
-    \end{align*}
-    合成されたOpticにおける右側の射$r$は、
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (T) at (0, -1) {$T$};
-        \node (NS) at (2, -1) {$N\times S$};
-        \node (NMA) at (5, -1) {$N\times (M\times A)$};
-        \node (NMA') at (9, -1) {$(N\times M)\times A$};
-
-        \draw[<-] (T) to node{$set_{TS}$}(NS);
-        \draw[<-] (NS) to node{$N\times set_{SA}$}(NMA);
-        \draw[<-] (NMA) to node{$a_{NMA'}$}(NMA');
-      \end{tikzpicture}
-    \end{center}
-    \[r = set_{TS}\circ\tuple{\pi_T,set_{SA}\circ\pi_{S\times A}}\circ a^{-1}\]となる。これは特に簡約できないが、元のLensの$set$の合成に類似しているため違和感は無い。
-    \[\tuple{l,r}:\arset{C}{T}{(T\times S)\times A}\times\arset{C}{(T\times S)\times A}{T}\]
-
-    次にこれをLensに復元する。命題\ref{prop-lens-is-optics}より、\[\mor{\pi_{A}\circ l=get_{SA}\circ get_{TS}}{T}{A}\]は明らかに定義\ref{def-comp-of-lens}の$get_{TA}$の定義と一致する。片方の\[\mor{\pi_{T\times S}\circ l=\tuple{id_T,get_{TS}}}{T}{T\times S}\]は$r$の$T\times S$側に合成すれば良いから、\[\mor{r\circ(\tuple{id_T,get_{TS}}\times A)}{T\times S}{T}\]
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (T) at (0, -1) {$T$};
-        \node (NS) at (2, -1) {$T\times S$};
-        \node (NMA) at (5, -1) {$T\times (S\times A)$};
-        \node (NMA') at (9, -1) {$(T\times S)\times A$};
-        \node (NMA'') at (13, -1) {$T\times A$};
-
-        \draw[<-] (T) to node{$set_{TS}$}(NS);
-        \draw[<-] (NS) to node{$T\times set_{SA}$}(NMA);
-        \draw[<-] (NMA) to node{$a_{TSA}$}(NMA');
-        \draw[<-] (NMA') to node{$\tuple{id_T,get_{TS}}\times A$}(NMA'');
-      \end{tikzpicture}
-    \end{center}
-    となる。これが$set_{TA}$と一致するかはわかりにくいが、定義\ref{def-comp-of-lens}における$set_{TA}$の定義の図式を左右反転させたものと一致することが分かる。
-  \end{proof}
-  \subsection{Lawful Optics}
-  LensやPrismの合成をOpticsによって一般化することができたが、それらの満たすべき制約についてもOpticsを用いて議論できる。
-  例えばLensにおいて、三つのレンズ則\[\mor{\pi_A = get\circ set}{S\times A}{A}\]
-  \[\mor{id_S = set\circ\tuple{id_S,get}}{S}{S\times A}\]\[\mor{set\circ(set\times A) = set\circ (\pi_S\times A)}{(S\times A)\times A}{S}\]
-  を与えたが、二つ目の等式はOpticと見なした時の左右の射の合成が恒等射になっている。一つ目は恒等射とはならないものの、$get$と$set$の合成が射影射として、$A$側については恒等となっている。そのため左右の射が互いに逆射になることが条件のように思える。そのため実際に逆射となると仮定しよう。すなわち次が成り立つ。
-  \[id_{S\times A} = \tuple{id_S,get}\circ set\]
-
-  しかしこの等式が実際に成り立つとすると、
-  \begin{align*}
-    id_{S\times A}&=\tuple{id_S,get}\circ set\\
-    &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
-    &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
-  \end{align*}
-  $id_{S\times A}$は$\pi_S$,$\pi_A$の射の対であり、$\tuple{set,\pi_A}$と等しいから$set = \pi_S$が成り立ってしまう。このような$set$は与えられた$A$の値を完全に廃棄し、$S$の値も全く変化させないということで、完全に非直感的な操作となってしまった。これにより厳密に逆射になることを制約に加えることはできないため、少し緩めたものを考える必要がある。
-
-  また、任意のOpticに対して逆射となるような操作を定義するには、Opticの合成と同じようにコエンドの普遍性を用いて行う必要がある。
-  \begin{define}[outside関数]
-    関数$\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}$をコエンドの普遍性によって定義する。任意の対象$M$に対する射
-    \[\mor{outside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]を任意の射$\mor{l}{S}{M\times A},\ \mor{r}{M\otimes A}{S}$に対して\[outside(l,r)=r\circ l\]と定義する。
-
-    次に$(\arset{C}{S}{S},outside)$が余楔であることを確認する。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (FG) at (0, 0) {$\arset{C}{S}{S}$};
-        \node (FAGA) at (7, 0) {$\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}$};
-        \node (FBGB) at (0, -2) {$\arset{C}{S}{N\otimes A}\times\arset{C}{N\otimes A}{S}$};
-        \node (FAGB) at (7, -2) {$F\arset{C}{S}{M\otimes A}\times\arset{C}{N\otimes A}{S}$};
-
-        \draw[<-] (FG) to node{$outside_M$}(FAGA);
-        \draw[<-] (FG) to node{$outside_N$}(FBGB);
-        \draw[<-] (FAGA) to node{$id\times\arset{C}{f\otimes A}{S}$}(FAGB);
-        \draw[<-] (FBGB) to node{$\arset{C}{S}{f\otimes A}\times id$}(FAGB);
-      \end{tikzpicture}
-    \end{center}
-    任意の射$\mor{f}{N}{M},\ \mor{l}{S}{N\otimes A},\ \mor{r}{M\otimes A}{S}$に対して\[outside((f\otimes A)\circ l,r) = r\circ ((f\otimes A)\circ l)=(r\circ (f\otimes A))\circ l=outside(l,r\circ (f\otimes A))\]であるから確かに余楔である。よって\[\mor{outside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{S}{S}}\]はコエンドの普遍性によって一意に定まる。
-  \end{define}
-  
-  \begin{define}[once、twice関数]
-    コエンド\[Optic^2_\cat{C}(S,S,A,A)=\coend{C\times C}{M,N}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{N\otimes A}\times\arset{C}{N\otimes A}{S}\]
-    に対して射$\mor{once,twice}{Optic_\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(S,S,A,A)}$を定義する。
-
-    任意の対象$M$に対して、
-    \begin{align*}
-      once_M(l,r) &= \tuple{l,id_{M\otimes A},r}\\
-      twice_M(l,r) &= \tuple{l,l\circ r,r}
-    \end{align*}
-    とすると、コエンドの普遍性より$once,twice$関数は一意に定まる。
-  \end{define}
-  また$Optic^2_\cat{C}(S,S,A,A)$のコエンドの普遍性により、任意の射\[\mor{l}{S}{M\otimes A},\ \mor{c}{M'\otimes A}{N\otimes A},\ \mor{r}{N'\otimes A}{S}\]\[\mor{f}{M'}{M}\ \mor{g}{N'}{N}\]に対して、
-  \begin{align*}
-    \tuple{(f\otimes A)\circ l,c,r}&=\tuple{l,c\circ(f\otimes A),r}\\
-    \tuple{l,c,r\circ(g\otimes A)} &= \tuple{l,(g\otimes A)\circ c,r}
-  \end{align*}
-  が成り立つ。
-  \begin{define}[lawful性]
-    あるOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$がlawfulであるとは、
-    \[outside(l,r)=id_S,\ once(l,r)=twice(l,r)\]を満たす時である。
-    すなわち\[r\circ l = id_S,\ \tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}\]である。
-  \end{define}
-  outside関数による制約は単なる逆射の定義の一部であるが、once関数、twice関数による制約がどのように緩められているかについて考える。\\
-
-  当然$\tuple{l,id_{M\otimes A},r}=\tuple{l,l\circ r,r}$ならば$id_{M\otimes A}=l\circ r$が成り立つとは限らない。これらが単なる射集合の順序対であれば成り立つが、右辺左辺はコエンドの元である。これにより余楔の等式によってこの等式が構成されていた場合は、左右の$l,r$に干渉してしまうからである。
-
-  
-  % \begin{define}[inside関数]
-  %   関手$\functor{\arset{C}{M\otimes -}{M\otimes -}}{C^{op}\times C}{Set}$に対するコエンド$\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}$を用いて、ある$M$に対するある射$\mor{\phi}{M}{M}$を表現する。
-
-  %   これによってinside関数\[\mor{inside}{\coend{C}{M}\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\coend{C}{M}\arset{C}{M\otimes A}{M\otimes A}}\]を同様にコエンドの普遍性によって定義しよう。
-
-  %   任意の対象$M$に対して\[\mor{inside_M}{\arset{C}{S}{M\otimes A}\times\arset{C}{M\otimes A}{S}}{\arset{C}{M\otimes A}{M\otimes A}}\]を
-  %   \[inside_M(l,r)=l\circ r\]とすると、コエンドの普遍性により$inside$関数が一意に定まる。
-  % \end{define}
-  % この二つの関数によって、定義\ref{def-lawful-optic}におけるlawful opticの等式は以下のように置き換えられる。
-  % \[outside(l,r)=id_S\]
-  % \[inside(l,r)=\phi\otimes A\]
-  % またコエンドの普遍性によれば自明であるが以下の命題が成り立つ。
-  % \begin{prop}
-  %   任意のOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$と$f^{-1}\circ f = id_M$を満たす任意の射$\mor{f}{M}{N},\ \mor{f^{-1}}{N}{M}$に対して\begin{align*}
-  %     inside(l,r)&=(f^{-1}\otimes A)\circ inside(l,r)\circ(f\otimes A)
-  %   \end{align*}
-  %   である。
-  % \end{prop}
-  % これによって、$inside(l,r)=\phi\otimes A$なる$\phi$の始域と終域は、$l,r$の始域、終域となる対象$M$と一致している必要性は無い。
-
-  % \begin{define}[lawful Optic]\label{def-lawful-optic}
-  %   あるOptic $\mor{\tuple{l,r}}{(S,S)}{(A,A)}$がlawfulであるとは、何らかの対象$M$と射$\mor{\phi}{M}{M}$が存在して
-  %   \[r\circ l = id_S\]
-  %   \[\tuple{l,id_A,r}\]が成り立つ時である。
-  % \end{define}
-  \begin{prop}[LensのLawful性]
-    レンズ則を満たすLens $(get,set)$に対して、対応するOptic $\tuple{\tuple{id_S,get},set}$はLawful性を満たす。
-  \end{prop}
-  \begin{proof}
-    Lawful性は逆射の関係と比べて、$l\circ r=id_{M\otimes A}$の条件が余楔の等式によって緩められている。そのため証明には$(-)\times A$の形の射に変形することが重要である。分かりやすい例で言えば三つ目のレンズ則
-    \[set\circ(set\times A) = set\circ (\pi_S\times A)\]が該当する。また、Lensにおける合成$l\circ r$においても、
-    \begin{align*}
-      \tuple{id_S,get}\circ set &=\tuple{set,get\circ set}&\text{(射の対の分配則)}\\
-      &=\tuple{set,\pi_A}&\text{(レンズ則)}\\
-      &= (set\times A)\circ\tuple{id_{S\times A},\pi_A}&\text{(射の積の定義)}\\
-    \end{align*}
-    が成り立つ。これによって、
-    \begin{align*}
-      &\tuple{\tuple{id_S,get},\tuple{id_S,get}\circ set, set}\\
-      &=\tuple{\tuple{id_S,get},(set\times A)\circ\tuple{id_{S\times A},\pi_A}, set}\\
-      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(set\times A)}&\text{(余楔の定義)}\\
-      &=\tuple{\tuple{id_S,get},\tuple{id_{S\times A},\pi_A}, set\circ(\pi_S\times A)}&\text{(レンズ則)}\\
-      &=\tuple{\tuple{id_S,get},(\pi_S\times A)\circ\tuple{id_{S\times A},\pi_A}, set}&\text{(余楔の定義)}\\
-      &=\tuple{\tuple{id_S,get},\tuple{\pi_S,\pi_A}, set}&\text{(射の積の定義)}\\
-      &=\tuple{\tuple{id_S,get},id_{S\times A}, set}&\text{(積の普遍性)}
-    \end{align*}
-    となり、Lens則を満たす場合はLawful性を満たすことが分かった。
-  \end{proof}
-  \begin{prop}[lawful性の合成における閉性]
-    二つのLawful Optic \[\mor{\tuple{l,r}}{(S,S)}{(A,A)},\ \mor{\tuple{l',r'}}{(T,T)}{(S,S)}\]の合成\[\mor{\tuple{l',r'}\circ\tuple{l,r}}{(T,T)}{(A,A)}\]もまたLawfulである。
-  \end{prop}
-  \begin{proof}
-    \[\tuple{l',r'}\circ\tuple{l,r}=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ r'\circ(N\otimes r)\circ a}\]であったから、
-    \[r'\circ(N\otimes r)\circ a\circ a^{-1}\circ(N\otimes l)\circ l'=id_T\]
-    \begin{alignat*}{2}
-      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
-      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
-    \end{alignat*}
-    の二つを示せば良い。ただし前者は自明であるため省略する。
-    \[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]とすると、後者の等式は\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l',f_l\circ id_{(N\otimes M)\otimes A}\circ g_r, r'\circ g_r}\]と表せる。
-    余楔の等式を用いて\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]が証明できたから、この等式においても余楔の等式が成り立てば良い。すなわち\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]である。もし$\phi\otimes S$が$f_l$より外側に来れば、この組全体の余楔の等式により、$l',r'$に対しても余楔の等式が成り立つ。よって\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]を示せば良い。特に前者を図式で表すと以下のようになる。
-
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (n) at (-2, 0) {$N$};
-        \node (n') at (-2, -2) {$N'$};
-        \draw[->] (n) to node{$\phi$}(n');
-
-        \node (ns) at (0, 0) {$N\otimes S$};
-        \node (n's) at (0, -2) {$N'\otimes S$};
-        \draw[->] (ns) to node{$\phi\otimes S$}(n's);
-
-
-        \node (nma) at (3, 0) {$N\otimes (M\otimes A)$};
-        \node (n'ma) at (3, -2) {$N'\otimes (M\otimes A)$};
-        \draw[->] (nma) to node{\scriptsize$\phi\otimes(M\otimes A)$}(n'ma);
-
-
-        \node (nma2) at (6, 0) {$(N\otimes M)\otimes A$};
-        \node (n'ma2) at (6, -2) {$(N'\otimes M)\otimes A$};
-        \draw[->] (nma2) to node{\scriptsize$(\phi\otimes M)\otimes A$}(n'ma2);
-        \draw[->] (ns) to node{$N\otimes l$}(nma);
-        \draw[->] (n's) to node{$N'\otimes l$}(n'ma);
-        \draw[->] (nma) to node{$a_{NMA}$}(nma2);
-        \draw[->] (n'ma) to node{$a_{N'MA}$}(n'ma2);
-      \end{tikzpicture}
-    \end{center}
-    左の正方形はモノイダル積$\otimes$の双関手性によって可換になり、右の正方形は結合子$a$の自然性によって可換になるから、全体が可換になり、\[f_l\circ(\phi\otimes S) = ((\phi\otimes M)\otimes A)\circ f_l\]が成り立つ。同様に\[(\phi\otimes S)\circ g_r = g_r\circ((\phi\otimes M)\otimes A)\]も成り立つ。これと余楔の等式によって\[\tuple{f_l\circ(\phi\otimes S) \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r} = \tuple{f_l\circ l',f_l \circ l'\circ r'\circ(\phi\otimes S)\circ g_r, r'\circ g_r}\]もまた成り立って、同様に\[\tuple{f_l \circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r\circ(\phi\otimes S)} = \tuple{f_l\circ l',f_l \circ(\phi\otimes S)\circ l'\circ r'\circ g_r, r'\circ g_r}\]もまた成り立つから、\[\tuple{l',l'\circ r', r'} = \tuple{l', id_{N\otimes S}, r'}\]と同様に余楔の等式を利用して\[\tuple{f_l\circ l',f_l\circ l'\circ r'\circ g_r, r'\circ g_r}=\tuple{f_l\circ l', f_l\circ g_r, r'\circ g_r}\]というように少し簡約できた。ここからの証明も\[\tuple{l,l\circ r, r} = \tuple{l, id_{M\otimes A}, r}\]の証明と同様の操作が行えることを自然性やら関手性で示せば証明できる。
-    よって    \begin{alignat*}{2}
-      \tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &a^{-1}\circ(N\otimes l)\circ l'\circ r'\circ(N\otimes r)\circ a,\ &r'\circ(N\otimes r)\circ a}\\
-      =\tuple{&a^{-1}\circ(N\otimes l)\circ l',\ &id_{(N\otimes M)\otimes A},\ &r'\circ(N\otimes r)\circ a}
-    \end{alignat*}が成り立ち、$\tuple{l',r'}\circ\tuple{l,r}$はLawfulである。
-    % まず$Optic^2$同士の合成\[\mor{\circ}{Optic^2_\cat{C}(T,T,S,S)\times Optic^2\cat{C}(S,S,A,A)}{Optic^2_\cat{C}(T,T,A,A)}\]を定義しよう。
-    % これは\[f_l = a^{-1}\circ(N\otimes l), \ g_r = (N\otimes r)\circ a\]として
-    % \[\circ_{MN} (\tuple{l',c',r'},\tuple{l,c,r}) =\tuple{f_l\circ l',f_l\circ c'\circ g_r, r'\circ g_r}\]を任意の対象$M,N$に対して定義しコエンドの普遍性より、実際にOptic間の写像となる。
-    % またこの時明らかに\[\circ (twice(l',r'),twice(l,r)) = twice(\tuple{l',r'}\circ\tuple{l,r})\]である。ここで左の引数をonce関数に置き換えると
-    % \begin{align*}
-    %   \circ (once(l',r'),twice(l,r)) &=  \tuple{f_l\circ l',f_l\circ g_r, r'\circ g_r}\\
-    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes l)\circ(N\otimes r)\circ a,\ r'\circ(N\otimes r)\circ a}\\
-    %   &=\tuple{a^{-1}\circ(N\otimes l)\circ l',\ a^{-1}\circ(N\otimes (l\circ r))\circ a,\ r'\circ(N\otimes r)\circ a}
-    % \end{align*}
-    
-  \end{proof}
-  \begin{prop}[恒等Opticのlawful性]  
-    任意の対象$(S,S)$に対する恒等Optic$\tuple{\lambda_S^{-1},\lambda_S}$はLawfulである。
-  \end{prop}
-  \begin{proof}
-    $\lambda_S$と$\lambda_S^{-1}$は互いに逆射であるから明らかにlawfulである。
-  \end{proof}
-  \section{Profunctor Optics}
-  \subsection{超自然変換}
-  評価射$\mor{ev_{A,B}}{A^B\times B}{A}$は$A$に対して自然であったが、$B$に対してはドメイン側に$B$が二回出ているため自然性は定義できず、代わりに超自然性を使う必要があると説明したがそれを厳密に議論する。
-
-  \begin{define}
-    関手$\functor{F}{C^{op}\times C}{Set}$に対して対象$X$、$\mor{\mu_A}{X}{T(A,A)}$が楔$(X,\mu)$である時、$\mu$を超自然変換と呼ぶ。
-    また対象$X$、$\mor{\mu_A}{T(A,A)}{X}$が余楔$(X,\mu)$である時も同様に超自然変換と呼ぶ。
-  \end{define}
-  \begin{center}
-    \begin{tikzpicture}[auto]
-      \node (FG) at (0, 0) {$X$};
-      \node (FAGA) at (3, 0) {$T(A,A)$};
-      \node (FBGB) at (0, -2) {$T(B,B)$};
-      \node (FAGB) at (3, -2) {$T(A,B)$};
-
-      \draw[->] (FG) to node{$\mu_A$}(FAGA);
-      \draw[->] (FG) to node{$\mu_B$}(FBGB);
-      \draw[->] (FAGA) to node{$T(A,f)$}(FAGB);
-      \draw[->] (FBGB) to node{$T(f,B)$}(FAGB);
-    \end{tikzpicture}
-  \end{center}
-  自然変換がエンドで定義されることから、自然変換の成分を元と見なした時これらは超自然性を持つ。
-  \begin{center}
-    \begin{tikzpicture}[auto]
-      \node (FG) at (0, 0) {$1$};
-      \node (FAGA) at (3, 0) {$\arset{D}{FA}{GA}$};
-      \node (FBGB) at (0, -2) {$\arset{D}{FB}{GB}$};
-      \node (FAGB) at (3, -2) {$\arset{D}{FA}{GB}$};
-
-      \draw[->] (FG) to node{$\alpha_A$}(FAGA);
-      \draw[->] (FG) to node{$\alpha_B$}(FBGB);
-      \draw[->] (FAGA) to node{$\arset{D}{FA}{Gf}$}(FAGB);
-      \draw[->] (FBGB) to node{$\arset{D}{Ff}{GB}$}(FAGB);
-    \end{tikzpicture}
-  \end{center}
-  \begin{prop}[評価射の超自然性]
-    圏$\cat{Set}$における評価射$\mor{ev_{A,B}}{\arset{Set}{B}{A}\times B}{A}$は$A$に対して自然であったが、$B$に対しては超自然になる。
-  \end{prop}
-  \begin{proof}
-    任意の射$\mor{g}{B'}{A}$、$\mor{f}{B}{B'}$、$B$の任意の元$b$に対して、\[ev_{A,B'}\circ\tuple{g,f(b)} = (g\circ f)(b)=ev_{A,B}\circ\tuple{g\circ f,b}\]であるから、$(A,ev_A)$は明らかに余楔となる。
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (FG) at (0, 0) {$A$};
-        \node (FAGA) at (4, 0) {$\arset{Set}{B}{A}\times B$};
-        \node (FBGB) at (0, -2) {$\arset{Set}{B'}{A}\times B'$};
-        \node (FAGB) at (4, -2) {$\arset{Set}{B'}{A}\times B$};
-  
-        \draw[<-] (FG) to node{$ev_{A,B}$}(FAGA);
-        \draw[<-] (FG) to node[swap]{$ev_{A,B'}$}(FBGB);
-        \draw[<-] (FAGA) to node{$\arset{Set}{f}{A}\times B$}(FAGB);
-        \draw[<-] (FBGB) to node[swap]{$\arset{Set}{B'}{A}\times f$}(FAGB);
-      \end{tikzpicture}
-    \end{center}
-  \end{proof}
-  このコエンドの図式は余米田の補題で示したものと非常に似ているが、実際に$F=Id_{\cat{Set}}$とすると明らかに\[A\cong\coend{C}{C}\arsetr{Set}{C}{A}\times C\]が成り立つ。つまり余楔$(A,ev_A)$はコエンドでもある。
-  \subsection{Profunctor}
-  ProfunctorはDistributor、Relatorなどとも呼ばれている概念で、二項関係の圏論的な一般化である。
-
-  まず集合$A,B$の間の二項関係$R$は$A\times B$の部分集合であるから、$2 = \{0,1\}$として特性関数\[\mor{R}{A\times B}{2}\]と表せる。
-
-  また集合$2$は、ある集合$A$の二つの元を取ったときに、二つの関係は等しいか等しくないかの情報しか無く、$2$の元が二つであるのはこの情報を表すためであると考えることもできる。
-
-  つまり二項関係では二つの集合の垣根を超えて、等しいか等しくないかの関係付けを行なっているとみなせる。これを圏に一般化しようとすると、二つの対象の間の関係は集合の圏に属する射集合で表されるから、集合$2$の代わりに圏$\cat{Set}$を使うのが望ましい。よってProfunctorは以下のように定義される。
-
-  % 集合$A,B$の間の二項関係$R$が$A$から$B$への写像であるとは、以下の二つの条件を満たす時である。
-  % \begin{quote}
-  %   \begin{mydescription}
-  %     \item[左全域性] $A$の任意の元$a$に対して$B$のある元$b$が存在し$aRb$である。
-  %     \item[右一意性] $A$の任意の元$a$に対して、$aRb$かつ$aRb'$なる$b,b'$が存在する時$b = b'$である。 
-  %   \end{mydescription}
-  % \end{quote}
-  % 写像$\mor{f}{A}{B}$の視点で二項関係$R$を見ると、写像と違って任意の$a$に対して、必ずしも対応する$B$の元が存在する必要はなく、かつ対応する$B$の元は必ずしも一意である必要がないということである。
-  % この性質から二項関係$R$は$2 = \{0,1\}$として\[\mor{R}{A}{2^{B}}\]と表せる。またここでの$2^{B}$は特性関数の集合であるから、$B$の冪集合と同型である。
-
-  \begin{define}[Profunctor]
-    圏$\cat{A,B}$において、関手$\functor{F}{A^{op}\times B}{Set}$をProfunctorとする。
-    
-    また$\cat{Cat}$はカルテジアン閉圏であるから、$\functor{F}{A^{op}\times B}{Set}$と$\functor{F}{B}{\funccat{A^{op}}{Set}}$と同一視できる。
-  \end{define}
-  また双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$は明らかにProfunctor\ $\profunctor{\arset{C}{-}{-}}{C}{C}$である。
-  \begin{define}[Profunctorの合成]
-    Profunctor\ $\profunctor{F}{A}{B},\ \profunctor{G}{B}{C}$の合成
-    $\profunctor{G\diamond F}{A}{C}$を
-    \[(G\diamond F)(A,C) = \coend{B}{B} G(B, C)\times F(A, B)\]と定義する。
-  \end{define}
-  集合の圏においてコエンドは添字付けられた余積のように働いたから、$(G\diamond F)(A,C)$は大まかには$\cat{B}$の任意の対象$B$に対する$G(B,C)$と$F(A,B)$の元の組をすべて含むような集合とみなすことができる。
-  \begin{prop}[Profunctorの結合律]
-    \[(H\diamond G)\diamond F \cong H\diamond(G\diamond F)\]
-  \end{prop}
-  \begin{prop}[Profunctorの単位元律]
-    \[F\diamond \arset{A}{-}{-} \cong F,\ \arset{B}{-}{-}\diamond F\cong F\]
-  \end{prop}
-
-  またHaskellにおける\pr{Profunctor}型クラスのインスタンス\pr{f}は$\functor{f}{H^{op}\times H}{H}$であるから
-  \begin{lstlisting}
-    class Profunctor p where
-      dimap :: (a -> b) -> (c -> d) -> p b c -> p a d
-      dimap f g = lmap f . rmap g
-  \end{lstlisting}
-  と定義できる。またProfunctor同士の合成は
-  \begin{lstlisting}
-    data CompRaw q p a c b d = CompRaw (q b c, p a d)
-    newtype Comp q p a c = Comp (Coend (CompRaw q p a c))
-
-    (<>) :: (Profunctor p , Profunctor q) =>
-     q b c -> p a b -> Comp q p a c
-    (<>) q p = Comp (Coend (CompRaw (q , p)))
-
-    instance (Profunctor p, Profunctor q) => Profunctor(Comp q p) where
-      dimap :: (Profunctor p, Profunctor q) =>
-       (a -> b) -> (c -> d) -> Comp q p b c -> Comp q p a d
-      dimap f g (Comp(Coend (CompRaw (q, p)))) = 
-      Comp(Coend(CompRaw (rmap g q, lmap f p)))
-  \end{lstlisting}
-  ProfunctorによってどのようにOpticsが一般化されるかを紹介するために次の命題を予め載せる。
-  \begin{prop}[Opticsの表現可能定理]
-    \[\cend{Tamb}{P}\arset{Set}{P(A,A')}{P(S,S')}\cong Optics_\cat{C}(S,S',A,A')\]
-  \end{prop}
-  $P$が属する圏$\cat{Tamb}$は丹原加群の圏であり、$P$は特殊なProfunctorである。
-  $P$についてもう少し説明すると、
-  まずモノイダル積関手$\mor{M\otimes -}{C}{C}$における射関数は\[\mor{M\otimes -}{\arset{C}{A}{A'}}{\arset{C}{M\otimes A}{M\otimes A'}}\]というような射であるが、これを双Hom関手$\functor{\arset{C}{-}{-}}{C^{op}\times C}{Set}$から拡張して\[\mor{\zeta_{A,A',M}}{P(A,A')}{P(M\otimes A, M\otimes A')}\]となるような射を考える。またモノイダル積関手の射関数では、射関数の自然性から$A,A'$に対して自然であったから$\zeta$にも$A,A'$に対する自然性を課す。さらに射$\mor{f}{M}{N}$に対してモノイダル積関手の間の自然変換$\nat{f\otimes -}{M\otimes -}{N\otimes -}$を考えることができたから、その成分に該当する$\zeta$にも$M$に対する自然性を課したい。しかし$P(M\otimes A,M\otimes A')$や$P(N\otimes A, N\otimes A')$は射集合ではないから代わりに超自然性を課す。
-
-  
-
-  \begin{center}
-    \begin{tikzpicture}[auto]
-      \node (FG) at (0, 0) {$P(A,A')$};
-      \node (FAGA) at (5, 0) {$P(M\otimes A,M\otimes A')$};
-      \node (FBGB) at (0, -2) {$P(N\otimes A,N\otimes A')$};
-      \node (FAGB) at (5, -2) {$P(M\otimes A,N\otimes A')$};
-
-      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FAGA);
-      \draw[->] (FG) to node{$\zeta_{A,A',M}$}(FBGB);
-      \draw[->] (FAGA) to node{$P(id,f\otimes A')$}(FAGB);
-      \draw[->] (FBGB) to node{$P(f\otimes A,id)$}(FAGB);
-    \end{tikzpicture}
-  \end{center}
-  \begin{define}[丹原加群の圏]
-    対称モノイダル圏$\cat{C}$に対する圏$\cat{Tamb}$を以下のように定義する。
-    \begin{quote}
-			\begin{mydescription}
-				\item[対象] Profunctor\ $\profunctor{P}{C}{C}$と自然変換$\zeta$の組$(P,\zeta)$
-				\item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
-          
-				\item[射の合成]
-				\item[恒等射の存在]
-				\item[結合律]
-				\item[単位元律]
-			\end{mydescription}
-		\end{quote}
-  \end{define}
+  \bibliographystyle{jplain}
+  \bibliography{../bibtex/optics}
 \end{document}
 ・TaPL
 ・私が書いた圏論入門
@@ -1511,3 +1955,5 @@ todo
 ・文章中ではレンズ、プリズムのように表記する
 ・コエンド、余積の証明にSetを用いる。
 ・SetとHがゴチャゴチャになっている
+
+・Optics、Lens、Prismの向き
