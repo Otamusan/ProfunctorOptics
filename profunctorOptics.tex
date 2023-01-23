@@ -31,7 +31,7 @@
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
   \title{Profunctor Opticsの理論と実装}
-  \author{https://otamusan.github.io/FPandCategory/categoricalfp.pdf}
+  \author{https://otamusan.github.io/ProfunctorOptics/ProfunctorOptics.pdf}
   \maketitle
 
 	\tableofcontents
@@ -1002,7 +1002,6 @@
   \end{define}
 
   Profunctorの表現定理の証明において、\cite{profunctor_optics_update}のLemma 4.10.は重要な役割を果たしているが、証明の概略が示されているのみである。また\cite{doubles_for_monoidal}ではプロモナドと丹原加群の関係性について議論されるが、詳細な証明を発見できなかった。そのため特に重要と思われる以下の命題を証明する。
-
   \begin{prop}[EM圏による関手圏の表現]\label{prop-representation-of-functor-category-as-em}
     任意の圏$C$において\[\cat{EM}(\incat{1}{\arset{C}{-}{-}})\cong[\cat{C,Set}]\]
     ただし$\profunctor{\arset{C}{-}{-}}{C}{C}$は恒等プロモナドであり、$\incat{1}{\arset{C}{-}{-}}$はプロモナドの合成によって定義されたモナドである。
@@ -1169,7 +1168,7 @@
     $\cat{EM}(\incat{1}{\arset{C}{-}{-}})$と$\incat{C}{Set}$の対象集合と射集合が同型になるから、$\cat{EM}(\incat{1}{\arset{C}{-}{-}})\cong\incat{C}{Set}$
   \end{proof}
   \cite{profunctor_optics_update}では$\cat{EM}(\incat{1}{\arset{C}{-}{-}})$を$\cat{EM}(\Phi)$と表記していることに注意。また証明の簡略化のため、$\incat{1}{\arset{C}{-}{-}}$なるモナドのEM圏を考えたが、\cite{profunctor_optics_update}では一点離散圏$\cat{1}$を任意の圏$\cat{X}$に置き換えたものが紹介されている。
-
+  またこの証明による関手圏の構成は、おそらく\cite{enriched_yoneda}のLeft-tensored category間の関手圏の構成と同じと思われる。
   \section{Profunctor Optics}
   \subsection{Profunctorの表現定理}
   ProfunctorによってどのようにOpticsが一般化されるかを紹介するために次の命題を予め載せる。
@@ -1735,7 +1734,7 @@
   \end{lstlisting}
   この例では多相関数\pr{toMaybe}をエンド\pr{toMaybeNat}に変換している。また\[\pr{mor.prj :: End (Nat f g) -> f b -> g b}\]によって元の多相関数へと復元することもできる。
   \subsection{関数型とべき随伴}
-  \begin{define}[随伴関手]\label{def-adjoint-functor}
+  \begin{define}[随伴関手]
       ある二つの関手$\functor{L}{C}{D}$、$\functor{R}{D}{C}$が随伴関手であるとは、以下の性質を満たす時である。
       \begin{quote}
         \begin{mydescription}
