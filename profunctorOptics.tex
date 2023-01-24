@@ -25,12 +25,12 @@
 
 \newcommand{\pr}[1]{\colorbox[rgb]{0.9,0.9,0.9}{\lstinline{#1}}}
 \newcommand{\functype}[2]{\pr{#1 -> #2}}
-\newcommand{\refcti}[1]{[CTI]\ref{#1}}
+\newcommand{\refcti}[1]{\cite{cti}\ref{#1}}
 \newcommand{\fpmor}[3]{\pr{#1 :: #2 -> #3}}
 
 \input{../categoryTheoryIntro/preemble.tex}
 \begin{document}
-  \title{Profunctor Opticsの理論と実装}
+  \title{プロファンクターオプティクスの理論と実装}
   \author{https://otamusan.github.io/ProfunctorOptics/profunctorOptics.pdf}
   \maketitle
 
@@ -39,13 +39,13 @@
   \section{はじめに}
   圏論とはは数学の一分野であり、主に数学の諸概念を一般化する時に用いられる。対称的に集合論も諸概念を基礎付ける分野であるが、圏論では扱いたい概念をその外部への振る舞いによって定義し、集合論では扱いたい概念を集合の操作で具体的に定義をする。
 
-  また圏論はその性質から、ソフトウェアの保守性などを高めるための抽象化とも相性がよい。特に関数型プログラミングでは型付ラムダ計算を基盤としている言語が多く、それは圏論におけるカルテジアン閉圏で容易にモデル化できる。そのためデータ構造やそれに対する操作を考察する時に、圏論を用いて代数的に行うことができる。
+  また圏論はその性質から、ソフトウェアの保守性などを高めるための抽象化とも相性がよい。特に関数型プログラミングでは型付ラムダ計算を基盤としている言語が多く、それは圏論におけるカルテジアン閉圏で容易にモデル化できる。そのためデータ構造やそれに対する操作を考察する時に、圏論を用いて数学的に行うことができる。
 
-  プログラミングにおいてあるオブジェクトに対するゲッター、セッターや、アップキャスト、ダウンキャストは一般的な操作である。それらを圏論的に一般化したものがOpticsであり、この論文ではそれを更に高度な圏論によって一般化しようと試みた。
+  これはプログラミングの一般的な操作である、データに対してのゲッター、セッターや、型のアップキャスト、ダウンキャストにおいても例外ではなく、実際にOpticsとして圏論的に研究されていて、この論文ではそれを2圏論などの更に高度な圏論によって一般化しようと試みた。
 
-  論文の流れとしては、二章で先に述べた操作の一般化であるOpticsについてまとめ、三章では四章で使用する圏論の概念の概説を行う。そして四章では二章で定義したOpticsを、より扱いやすい形式に変形する。
+  論文の流れとしては、二章で先に述べた操作の一般化であるOpticsについてまとめ、三章では四章で使用する圏論の概念の概説を行う。そして四章では二章で定義したOpticsを、より扱いやすい形式に変形する。五章ではこの試みの仮定と結果を述べ、六章では研究のまとめと今回扱えなかったアイデアを載せた。
 
-  また論文内では例としてHaskellのコードを使用しているが、付録としてHaskellの簡単な説明と、Haskellの諸概念と圏論の関係性について載せてある。
+  また論文内では例としてHaskellのコードを使用しているが、付録としてHaskellの簡単な説明と、Haskellの諸概念と圏論の関係性について載せてある。圏論については自著の\cite{cti}があり、他に圏論と関数型言語の関係性についての文献は\cite{dao_of_fp}がある。
   \section{Optics}
   最初にOpticsの例としてLens、Prismを挙げる。これらは先に述べたように、ゲッター、セッターとアップキャスト、ダウンキャストの一般化である。この初歩的な抽象化の恩恵として、これらの操作が圏論的に双対になることを確認してほしい。またこの章の内容は主に\cite{categories_of_optics}を参考にしている。
 
@@ -1279,7 +1279,7 @@
     それぞれ命題\ref{prop-cong-tamb-and-em-on-prof}、命題\ref{prop-optic-as-profunctor}、命題\ref{prop-representation-of-functor-category-as-em}により、
     \[\cat{Tamb}\cong\cat{EM}(\incatp{\cat{1}}{\Phi})\cong\cat{EM}(\incatp{\cat{1}}{\arset{Optic}{-}{-}})\cong\incat{Optic}{Set}\]となる。
   \end{proof}
-
+  次に証明は簡潔であるが、Profuctorの表現定理のもう一つの軸である二重米田の補題を証明する。
   \begin{prop}[二重米田の補題]
     \[\arset{C}{A}{B}\cong\cend{\incat{C}{Set}}{F}\inset{FA}{FB}\]であり、$A,B$に対して自然。
   \end{prop}
@@ -1291,17 +1291,194 @@
       &\cong\arset{C}{A}{B}&\text{(米田の原理)}
     \end{align*}
   \end{proof}
+  また命題は\cite{dao_of_fp}によると淡中再構成の圏論的一般化である。
+
+  いよいよ命題\ref{prop-profunctor-representation-theorem}の証明を行う。
   \begin{proof}
     \begin{align*}
-      &\cend{Tamb}{F}\inset{P(A,A')}{P(S,S')}\\
-      \cong&\cend{\incat{Optic}{Set}}{F}\inset{P(A,A')}{P(S,S')}\\
+      &\cend{Tamb}{P}\inset{P(A,A')}{P(S,S')}\\
+      \cong&\cend{\incat{Optic}{Set}}{P}\inset{P(A,A')}{P(S,S')}\\
       \cong&\arset{Optic}{(A,A')}{(S,S')}
     \end{align*}
   \end{proof}
 
+  \section{仮説と結果}
+  この章ではこれまでの議論から生まれた仮説と、それに対する取り組みの過程と結果を述べていく。
+
+  \ref{prop-cong-tamb-and-copre-optic}では圏同型$\cat{Tamb}\cong\incat{Optic}{Set}$を示したが、丹原加群の圏はある種の余EM圏であり、Opticの圏の定義の手法は余クライスリ圏のクライスリ射による定義によく似ている。EM圏とクライスリ圏はある種の双対性を持つため、この証明を一般化できると考えた。
+
+  まずは丹原加群の圏が余EM圏であることを示す。
+  \begin{prop}
+    Profunctor $\profunctor{P}{C}{C}$に対して\[\Theta(P) = \cend{C}{M}P(M\otimes -, M\otimes -)\]とすると、$\Theta(P)$はProfunctor $\profunctor{\Theta P}{C}{C}$であり、$\Theta$は関手$\functor{\Theta}{Prof}{Prof}$である。
+  \end{prop}
+  \begin{proof}
+    $P$はProfunctorであり、$M\otimes -$の関手性とコエンドの普遍性から$\Theta(P)$もProfuctorになる。$\Theta$の関手性もコエンドの普遍性より成り立つ。
+  \end{proof}
+  \begin{define}[コモナド]
+    関手$\functor{W}{C}{C}$に対するコモナド$(W,\delta, \epsilon)$を以下の要素で構成する。
+    \begin{quote}
+      \begin{mydescription}
+        \item[余乗算子] 自然変換$\nat{\delta}{W}{W\circ W}$
+        \item[余単位子] 自然変換$\nat{\epsilon}{W}{Id_W}$
+        \item[余結合則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$W$};
+            \node (ww) at (3, 0) {$W\circ W$};
+            \node (ww2) at (0, -2) {$W\circ W$};
+            \node (www) at (3, -2) {$W\circ W\circ W$};
+            \draw[double,double equal sign distance,-implies] (w) to node{$\delta$}(ww);
+            \draw[double,double equal sign distance,-implies] (w) to node{$\delta$}(ww2);
+            \draw[double,double equal sign distance,-implies] (ww) to node{$W\circ \delta$}(www);
+            \draw[double,double equal sign distance,-implies] (ww2) to node{$\delta\circ W$}(www);
+          \end{tikzpicture}
+        \end{center}
+        \item[余単位則] 以下の図式を可換にする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (w) at (0, 0) {$W$};
+            
+            \node (ww) at (0, -2) {$W\circ W$};
+            \node (w2) at (-2, -2) {$W$};
+            \node (w3) at (2, -2) {$W$};
+            \draw[double,double equal sign distance,-implies] (w) to node{$\delta$}(ww);
+            \draw[double,double equal sign distance,-implies] (ww) to node{$W\circ\epsilon$}(w2);            
+            \draw[double,double equal sign distance,-implies] (ww) to node[swap]{$\epsilon\circ W$}(w3);
+
+            \draw[double,double equal sign distance] (w) to (w2);
+            \draw[double,double equal sign distance] (w) to (w3);
+
+          \end{tikzpicture}
+        \end{center}      
+      \end{mydescription}
+    \end{quote}
+  \end{define}
+  \begin{prop}
+    $\Theta$はコモナドである。
+  \end{prop}
+  \begin{proof}
+  まずフビニの定理より$\Theta(\Theta P) = \cend{C}{N,M}P(N\otimes (M\otimes -), N\otimes (M\otimes -))$である。
+  これによって余乗算子\[\mor{\delta_P}{\cend{C}{M}P(M\otimes -,M\otimes -)}{\cend{C}{M,N}P(N\otimes (M\otimes -),N\otimes (M\otimes -))}\]を定義する。
+  エンドの普遍性より\[\mor{\delta_{P,M,N}}{\cend{C}{M}P(M\otimes -,M\otimes -)}{P(N\otimes (M\otimes -),N\otimes (M\otimes -))}\]なる射を示せば良いが、射影射\[\mor{\tau_{N\otimes M}}{\cend{C}{M}P(M\otimes -,M\otimes -)}{P((N\otimes M)\otimes -,(N\otimes M)\otimes -)}\]とモノイダル圏の結合子による作用\[\mor{P(a^{-1}_{NM-},a_{NM-})}{P((N\otimes M)\otimes -,(N\otimes M)\otimes -)}{P(N\otimes (M\otimes -),N\otimes (M\otimes -))}\]の合成によって、
+  
+  これは\[\delta_{P,M,N} = P(a^{-1}_{NM-},a_{NM-})\cdot\tau_{N\otimes M}\]とすればよい。次に余単位子\[\mor{\epsilon_P}{\cend{C}{M}P(M\otimes -,M\otimes -)}{P}\]であるが、射影射\[\mor{\tau_I}{\cend{C}{M}P(M\otimes -,M\otimes -)}{P(I\otimes -, I\otimes -)}\]と、モノイダル圏の単位子による作用\[\mor{P(\lambda^{-1},\lambda)}{P(I\otimes -, I\otimes -)}{P(-,-)}\]の合成によって\[\epsilon_P = P(\lambda^{-1},\lambda)\cdot\tau_I\]と定義する。またコモナドの余結合則と余単位則はフビニの定理とモノイダル圏の性質によって成り立つ。
+  \end{proof}
+  またモナドに対するEM圏と同様にコモナドに対するEM圏を余EM圏とし、$\cat{coEM}(\Theta)$と表記することにする。これにより次が明らかに成り立つ。
+  \begin{prop}\label{prop-tamb-is-coem}
+    $\cat{Tamb}\cong \cat{coEM}(\Theta)$
+  \end{prop}
+  次にEM圏とクライスリ圏の双対性について軽く説明する。詳細については\cite{formal_theory_of_monads}か\cite{alg_monad}を参照。
+  \begin{prop}[EM圏の普遍性]
+    圏$\cat{EM}(M)$がモナド$(M,\eta, \mu)$によるEM圏である時、以下の図式を可換にするような$\functor{H}{X}{C}$に対して$\functor{H'}{X}{EM(M)}$が一意に定まる。ただしここでの可換性は関手の可換性$U\circ H' = H$と、自然変換の可換性$\omega = \zeta\circ H'$の二つである。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (x) at (1, 0) {$\cat{X}$};
+        \node (em) at (1, -2) {$\cat{EM}(M)$};
+        \node (c1) at (0, -4) {$\cat{C}$};
+        \node (c2) at (2, -4) {$\cat{C}$};
+        \draw[->] (x) to node{$H'$}(em);
+        \draw[->] (em) to node(u1)[swap]{$U$}(c1);
+        \draw[->] (em) to node{$U$}(c2);
+        \draw[->] (c2) to node{$M$}(c1);
+        \draw[double,double equal sign distance,-implies,shorten >=7pt,shorten <=7pt] (c2) to node{$\zeta$}(u1);
+
+        \node (x) at (4, 0) {$\cat{X}$};
+        \node (c1) at (3, -4) {$\cat{C}$};
+        \node (c2) at (5, -4) {$\cat{C}$};
+        \draw[->] (x) to node(h1)[swap]{$H$}(c1);
+        \draw[->] (x) to node{$H$}(c2);
+        \draw[->] (c2) to node{$M$}(c1);
+        \draw[double,double equal sign distance,-implies,shorten >=7pt,shorten <=7pt] (c2) to node{$\omega$}(h1);
+      \end{tikzpicture}
+    \end{center}      
+  \end{prop}
+  このような普遍性を持つ圏$\cat{EM}(M)$がEM圏となることは任意の圏$X$に一点離散圏$\cat{1}$を当てはめれば明らかである。
+
+  また逆についてはEM圏が自由忘却随伴を持つことから示せる。
+  \begin{define}[クライスリ圏]
+    圏$\cat{C}$上のモナド$(M,\eta,\mu)$に対するクライスリ圏を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象] 圏$\cat{C}$と同じ対象を持つとする。すなわち$\obj{Kl(M)}=\obj{C}$である。また区別のため圏$\cat{C}$の対象$C$に対する$\cat{Kl}(M)$の対象を$C_k$と表記する。
+				\item[射] 任意の対象$A,B$に対する射集合を\[\cat{Kl}(M)(A,B) = \arset{C}{A}{TB}\]と定義する。同様に圏$\cat{C}$の射$\mor{f}{A}{TB}$に対する$\cat{Kl}(M)$の射を$\mor{f_k}{A_k}{B_k}$と表記することにする。
+				\item[射の合成]クライスリ圏の射$\mor{f_k}{A_k}{B_k},\ \mor{g_k}{B_k}{C_k}$の合成を\[g_k\circ f_k = (\mu_C\circ Mg\circ f)_k\]と定義する。
+				\item[恒等射の存在] 恒等射$\mor{id_{A_k}}{A_k}{A_k}$を\[id_{A_k} = (\eta_A)_k\]と定義する。
+				\item[結合律] モナドの結合則より成り立つ。
+				\item[単位元律] モナドの単位則より成り立つ。
+			\end{mydescription}
+		\end{quote}
+  \end{define}
+  クライスリ圏もEM圏と同様に普遍性を持つ。
+  \begin{prop}[クライスリ圏の普遍性]
+    圏$\cat{kl}(M)$がモナド$(M,\eta, \mu)$によるクライスリ圏である時、以下の図式を可換にするような$\functor{H}{C}{X}$に対して$\functor{H'}{kl(M)}{X}$が一意に定まる。ただしここでの可換性は関手の可換性$H'\circ U = H$と、自然変換の可換性$\omega = H'\circ\zeta$の二つである。
+    \begin{center}
+      \begin{tikzpicture}[auto]
+        \node (x) at (1, 0) {$\cat{X}$};
+        \node (em) at (1, -2) {$\cat{kl}(M)$};
+        \node (c1) at (0, -4) {$\cat{C}$};
+        \node (c2) at (2, -4) {$\cat{C}$};
+        \draw[<-] (x) to node{$H'$}(em);
+        \draw[<-] (em) to node(u1)[swap]{$F$}(c1);
+        \draw[<-] (em) to node{$F$}(c2);
+        \draw[<-] (c2) to node{$M$}(c1);
+        \draw[double,double equal sign distance,-implies,shorten >=7pt,shorten <=7pt] (c2) to node{$\zeta$}(u1);
+
+        \node (x) at (4, 0) {$\cat{X}$};
+        \node (c1) at (3, -4) {$\cat{C}$};
+        \node (c2) at (5, -4) {$\cat{C}$};
+        \draw[<-] (x) to node(h1)[swap]{$H$}(c1);
+        \draw[<-] (x) to node{$H$}(c2);
+        \draw[<-] (c2) to node{$M$}(c1);
+        \draw[double,double equal sign distance,-implies,shorten >=7pt,shorten <=7pt] (c2) to node{$\omega$}(h1);
+      \end{tikzpicture}
+    \end{center}
+  \end{prop}
+  EM圏の時とは異なり圏$\cat{kl}(M)$が上の普遍性を持つ時クライスリ圏となるかは確認できない。しかしクライスリ射によるクライスリ圏の定義\[\cat{kl}(M)(A_k,B_k) = \arset{C}{A}{TB}\]は余自由忘却随伴の射集合による定義とみなすことができ、これにより上の普遍性を満たす。またこのような普遍性を満たす時、高次の普遍性によってそのような圏は圏同値を除いて一意に定義される。
+
+  また$\cat{Cat}$上のEM圏は対象、射を具体的に定義し構成したが、圏$\cat{Prof}$のようにカルテジアン閉とは限らない場合は対象、射を取って構成することができない。しかしこの普遍性による定義であれば、そのような性質を満たすような圏やら関手やら自然変換を見つければ定義できる。
+
+  またこの普遍性によって次の命題が成り立つ。\cite{formal_theory_of_monads}
+  \begin{prop}\label{prop-em-and-kl}
+    圏$\cat{C}$の前層の圏$\incat{C^{op}}{Set}$に対して、それの米田埋め込みによる充満部分圏を$\incat{C^{op}}{Set}_y$と表記する。
+    モナド$(M,\eta, \mu)$に対して\[\cat{EM}(M)\simeq[\cat{kl}(M)^{op},\cat{Set}]_y\]が成り立つ。
+  \end{prop}
+
+  これまでの議論では主にプロモナドを扱ってきたが、この命題は一般の2-categoryではなく$\cat{Cat}$を仮定している。特に圏$\cat{Prof}$はbicategoryであり、前層の圏を一般には持たない。しかし\cite{yoneda_structures_on_2_category}によれば、$\cat{Cat}$でなくともある2-category $\cat{K}$がYoneda structureと呼ばれる公理を満たし、$\cat{K}$の対象$A$がadmissibleであれば前層の圏と米田埋め込みを模倣できるとある。さらにそれによって上の命題の圏同値が成り立つ。
+
+  そこで仮説として、命題\ref{prop-cong-tamb-and-copre-optic}はこの命題の特殊な場合であると考えた。
+  特に\ref{prop-cong-tamb-and-em-on-prof}によって$\cat{Tamb}\cong\cat{EM}[\cat{1},\Phi]$が成り立つ。同様に$\cat{Optic}\cong\cat{Kl}[\cat{1},\Phi]$であることを期待するが、成り立つかどうかは不明である。
+  
+  ただし\cite{doubles_for_monoidal}\cite{profunctor_optics_update}によれば$\cat{Prof}$ではクライスリ構成が可能であると述べている。\cite{doubles_for_monoidal}によれば、プロモナド$(M,\eta,\mu)$に対してクライスリ圏の対象集合をもとの圏と同じとし、$A,B$に対する射集合を$M(A,B)$として定義している。これを無理にクライスリ圏と解釈するなら、
+
+  \begin{align*}
+    \Phi(A,B)&\cong(\Phi\diamond\arset{C}{-}{-})&\text{$(\cat{Prof}の単位元則)$}\\
+    &\cong\inset{\arset{C}{-}{-}}{\Phi\diamond\arset{C}{-}{-}}&\text{(米田の補題)}\\
+  \end{align*}
+  となり、クライスリ圏の対象となるProfunctorは恒等Profunctor $\arset{C}{-}{-}$のみを持つクライスリ圏$\cat{kl}([\cat{C},\Phi])$となる。このような構成であってもクライスリ圏の普遍性によって$\cat{kl}([\cat{C},\Phi])$と圏同値になる可能性もあるが示すことはできていない。
+
+  また$\incat{Optic}{Set}$は特に米田埋め込みの充満部分圏であることは仮定しないが、これは$\cat{Optic}$が特殊なクライスリ圏であることが関係している可能性もある。これについては\cite{yoneda_structures_on_2_category}のTotal categoryの議論によって解決できるかもしれない。
+
+  次に少し視点を変えて\ref{prop-tamb-is-coem}に着目する。命題\ref{prop-cong-tamb-and-em-on-prof}の証明に、両者の圏の対象の対応について述べた。この証明を見ると、\[\cend{C}{A,A',S,S',M}\inset{\Phi(A,A',S,S')}{\inset{P(A,A')}{P(S,S')}}\cong
+  \cend{C}{A,A'}\inset{P(A,A')}{\cend{C}{M}P(M\otimes A,M\otimes A')}\]が成り立つが、$\Phi(A,A',S,S')=\arset{Optic}{(A,A')}{(S,S')}$であったから、圏$\cat{Optic}$がコモナド$\Theta$による余クライスリ圏であれば、命題\ref{prop-em-and-kl}と類似することになる。特に積圏の定義により
+  \[\arset{Optic}{(A,A')}{(S,S')} = \cend{C}{M}\arset{(C^{op}\times C)}{(M\otimes A,M\otimes A')}{(S,S')}\]と表せるから、$\arset{(C^{op}\times C)}{\Theta(A,A')}{(S,S')}$と表し余クライスリ圏の構成に変形したいが、$\Theta$はProfunctor上の自己関手であるため不可能である。
+  \section{まとめと今後の課題}
+  研究としては命題\ref{prop-cong-tamb-and-em-on-prof}に厳密な証明を与えたほどで、前章で述べた仮説について結果を出すことはできなかった。またその仮説の結果を\cite{categories_of_optics}のLawful Profunctor Opticsへと応用し、OpticのLawful性を圏論的視点から一般化するという目標も達成できなかった。
+
+  最後に今後の課題をいくつか挙げる
+  \begin{mydescription}
+    \item[モノイダル積の関手への一般化] \cite{categories_of_optics}ではモノイダル積$\functor{\otimes}{C\times C}{C}$を一般化した圏の作用$\functor{\cdot}{M\times C}{C}$を用いて議論していた。更に\cite{profunctor_optics_update}では、Opticの定義に出現する二つの作用が異なるものであることを許容する、Mixed Opticsを定義していた。この流れを考えるとOpticを以下のように定義できそうである。
+    \[\arset{FOptic}{(A,A')}{(S,S')} = \coend{\incat{C}{C}}{F}\arset{C}{S}{FA}\times \arset{C}{FA'}{S'}\]
+    一般のOptic $\tuple{l,r}:\arset{C}{S}{M\otimes A}\times \arset{C}{M\otimes A'}{S}$は$\cat{FOptic}$の入射$\kappa_{M\otimes -}$によって$\arset{FOptic}{(A,A')}{(S,S')}$へと写すことができる。これによってFOpticsは一般のモノイダル積や作用によるOpticsの定義の拡張となっていることが分かる。またFOpticsもOpticsと同様に圏をなす。
+
+    またこの拡張の利点として、異なるモノイダル積によるOpticの合成で閉じていることが挙げられる。一般のOpticでは二つのOpticを合成しようとする時、それぞれのモノイダル積が分配しない場合は一つのモノイダル積とはならずOpticにはならないが、少なくとも関手にはなる。
+
+    \cite{profunctor_optics_update}でもVan Laarhoven encodingと呼ばれるレンズなどのまた異なる一般化について述べられているが、定義が非常に似ているため何かしら関連があるかもしれない。
+    \item[Lawful性とプロモノイダル構造]\cite{categories_of_optics}ではProfunctor OpticsのLawful性について議論しているが、用いられている構成は明らかに\cite{doubles_for_monoidal}にあるプロモナド上のプロモノイダル構造の一種である。おそらく参考にしたと思われるがプロモナドについて言及していないため、それによる一般化は有用だと思われる。
+  \end{mydescription}
   \appendix
 
   \section{Haskellの基礎}
+  付録としてHaskellの簡単な解説を載せる。詳しくは\cite{sugoi_haskell}を読んでほしい。
   \subsection{関数型}
   Haskellにも一般のプログラミングと同じようにデータ型が存在し、整数値を持つ\pr{Int}型や\pr{True}と\pr{False}を持つ\pr{Bool}型などがある。
   また整数値を受け取って二倍にして返す、つまり$double(x)=2x$なる
@@ -1920,39 +2097,3 @@
   \bibliographystyle{jplain}
   \bibliography{../bibtex/optics}
 \end{document}
-・TaPL
-・私が書いた圏論入門
-・すごいH本
-・https://hackage.haskell.org/
-・basic concept of enriched category theory
-・distributer at works
-
-
-https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf
-https://hackage.haskell.org/package/optics-0.4.2/docs
-https://arxiv.org/pdf/2001.07488.pdf
-https://arxiv.org/pdf/1809.00738.pdf
-https://arxiv.org/pdf/1501.02503.pdf (coend calculus)
-https://bartoszmilewski.com/2017/03/29/ends-and-coends/
-https://github.com/BartoszMilewski/Publications/blob/master/TheDaoOfFP/DaoFP.pdf
-dont fear profunctor optics
-タイトル　圏論側からの方向性　圏論の概念
-現在だとデザイン
-総合報告まとめ
-
-int型はint値の集合
-
-todo
-
-グローバル
-・元の対を\tupleではなく()で表す
-
-ローカル
-・prismの第三法則を追加
-・lens則、prism則に名前をつける
-・関数名の字体を揃える
-・文章中ではレンズ、プリズムのように表記する
-・コエンド、余積の証明にSetを用いる。
-・SetとHがゴチャゴチャになっている
-
-・Optics、Lens、Prismの向き
