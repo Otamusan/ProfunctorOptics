@@ -43,9 +43,9 @@
 
   これはプログラミングの一般的な操作である、データに対してのゲッター、セッターや、型のアップキャスト、ダウンキャストにおいても例外ではなく、実際にOpticsとして圏論的に研究されていて、この論文ではそれを2圏論などの更に高度な圏論によって一般化しようと試みた。
 
-  論文の流れとしては、二章で先に述べた操作の一般化であるOpticsについてまとめ、三章では四章で使用する圏論の概念の概説を行う。そして四章では二章で定義したOpticsを、より扱いやすい形式に変形する。五章ではこの試みの仮定と結果を述べ、六章では研究のまとめと今回扱えなかったアイデアを載せた。
+  論文の流れとしては、二章で先に述べた操作の一般化であるOpticsについてまとめ、三章では四章で使用する圏論の概念の概説を行う。そして四章では二章で定義したOpticsを、より扱いやすい形式に変形する手法を紹介する。五章ではさらなる圏論的一般化についての仮説と研究の結果を述べ、六章では研究のまとめと今回扱えなかったアイデアを載せた。
 
-  また論文内では例としてHaskellのコードを使用しているが、付録としてHaskellの簡単な説明と、Haskellの諸概念と圏論の関係性について載せてある。圏論については自著の\cite{cti}があり、他に圏論と関数型言語の関係性についての文献は\cite{dao_of_fp}がある。
+  また論文内では例としてHaskellのコードを使用しているが、付録としてHaskellの簡単な説明と、Haskellの諸概念と圏論の関係性について載せていて、本文中のコードは付録で定義されたコードを参照する場合がある。圏論については自著の\cite{cti}があり、他に圏論と関数型言語の関係性についての文献は\cite{dao_of_fp}がある。
   \section{Optics}
   最初にOpticsの例としてLens、Prismを挙げる。これらは先に述べたように、ゲッター、セッターとアップキャスト、ダウンキャストの一般化である。この初歩的な抽象化の恩恵として、これらの操作が圏論的に双対になることを確認してほしい。またこの章の内容は主に\cite{categories_of_optics}を参考にしている。
 
@@ -729,7 +729,7 @@
   \section{Profunctorとモナド}
   次章ではOpticsの別の表現方法としてProfunctor Opticsを定義するが、そのために必要な圏論の知識がいくつかあるため軽くまとめておく。
   \subsection{超自然変換}
-  評価射$\mor{ev_{A,B}}{A^B\times B}{A}$は$A$に対して自然であったが、$B$に対してはドメイン側に$B$が二回出ているため自然性は定義できず、代わりに超自然性を使う必要があると説明したがそれを厳密に議論する。
+  評価射$\mor{ev_{A,B}}{A^B\times B}{A}$は$A$に対して自然であったが、$B$に対してはドメイン側に$B$が二回出ているため自然性は定義できず、代わりに超自然性を使う必要があると説明したがそれを厳密に議論する。また超自然性にはいくつか定義の仕方があるが、今回は\cite{BCECT}の定義を参考にした。
 
   \begin{define}
     関手$\functor{F}{C^{op}\times C}{Set}$に対して対象$X$、$\mor{\mu_A}{X}{T(A,A)}$が楔$(X,\mu)$である時、$\mu$を超自然変換と呼ぶ。
@@ -1255,6 +1255,16 @@
 			\end{mydescription}
 		\end{quote}
   \end{define}
+  この丹原加群もHaskellで次のように記述できる。また例としてProfunctorを関数型\pr{(->)}、モノイダル積を\pr{(,)}とした丹原加群の実装を載せた。
+
+  \begin{lstlisting}
+    class (Profunctor p, Bifunctor t) => Tambara p t where
+      tambAction :: p a b -> p (t m a) (t m b)
+
+    instance Tambara (->) (,) where
+      tambAction :: (a -> b) -> (m, a) -> (m, b)
+      tambAction f (m, a) = (m, f a)
+  \end{lstlisting}
   \begin{prop}\label{prop-cong-tamb-and-em-on-prof}
     $\cat{Tamb}\cong\cat{EM}(\incatp{\cat{1}}{\Phi})$
   \end{prop}
@@ -1292,8 +1302,28 @@
     \end{align*}
   \end{proof}
   また命題は\cite{dao_of_fp}によると淡中再構成の圏論的一般化である。
+  
+  この同型の同型射は複雑なように思えるが、証明を追うと同型射は以下のような写像であることが分かる。
+  射$\mor{\phi}{\arset{C}{A}{B}}{\cend{\incat{C}{Set}}{F}\inset{FA}{FB}}$は任意の$F$に対して以下のような写像である。
+  \begin{align*}
+    \mor{\phi_F&}{\arset{C}{A}{B}}{\inset{FA}{FB}}\\
+    \phi_F& = F_{A,B}
+  \end{align*}
+  同様に$\mor{\phi^{-1}}{\cend{\incat{C}{Set}}{F}\inset{FA}{FB}}{\arset{C}{A}{B}}$は
+  \begin{align*}
+    \phi^{-1} = \kappa_{Id}
+  \end{align*}となる。同型射を特定できたためこれをHaskellで記述すると、
+  \begin{lstlisting}
+    toDbYoneda :: (a -> b) -> (forall f. Functor f => f a -> f b)
+    toDbYoneda f = fmap f
 
-  いよいよ命題\ref{prop-profunctor-representation-theorem}の証明を行う。
+    fromDbYoneda :: (forall f. Functor f => f a -> f b) -> a -> b
+    fromDbYoneda f = runIdentity.f.Identity
+  \end{lstlisting}
+  となる。
+
+
+  さて必要な道具はすべて揃ったから、いよいよ命題\ref{prop-profunctor-representation-theorem}の証明を行う。
   \begin{proof}
     \begin{align*}
       &\cend{Tamb}{P}\inset{P(A,A')}{P(S,S')}\\
@@ -1301,6 +1331,8 @@
       \cong&\arset{Optic}{(A,A')}{(S,S')}
     \end{align*}
   \end{proof}
+
+  残念なことに命題\ref{prop-cong-tamb-and-copre-optic}の証明の整理と理解が不十分であることから、プロモナドを用いた証明をHaskellのコードに変換することはやめておくことにする。Profunctorの表現定理の同型射については\cite{categories_of_optics}を、実装は\cite{what_you_needa}を参照してほしい。
 
   \section{仮説と結果}
   この章ではこれまでの議論から生まれた仮説と、それに対する取り組みの過程と結果を述べていく。
@@ -2064,7 +2096,7 @@
   \end{lstlisting}
   また左右の冪随伴における余積、積の保存の同型もこのように定義できる。
 
-  積を持つ圏の一般化であるモノイダル圏を定義しよう。
+  積を持つ圏の一般化であるモノイダル圏を定義しよう。詳細は用途からして\cite{BCECT}を参考にするとよい。
   \begin{define}[モノイダル圏]\label{def-monoidal-cat}
     ある圏$\cat{C}$がモノイダル圏であるとは、
     \begin{quote}
