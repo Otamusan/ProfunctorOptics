@@ -37,7 +37,7 @@
 	\tableofcontents
   \pagebreak
   \section{はじめに}
-  圏論とはは数学の一分野であり、主に数学の諸概念を一般化する時に用いられる。対称的に集合論も諸概念を基礎付ける分野であるが、圏論では扱いたい概念をその外部への振る舞いによって定義し、集合論では扱いたい概念を集合の操作で具体的に定義をする。
+  圏論とは数学の一分野であり、主に数学の諸概念を一般化する時に用いられる。対称的に集合論も諸概念を基礎付ける分野であるが、圏論では扱いたい概念をその外部への振る舞いによって定義し、集合論では扱いたい概念を集合の操作で具体的に定義をする。
 
   また圏論はその性質から、ソフトウェアの保守性などを高めるための抽象化とも相性がよい。特に関数型プログラミングでは型付ラムダ計算を基盤としている言語が多く、それは圏論におけるカルテジアン閉圏で容易にモデル化できる。そのためデータ構造やそれに対する操作を考察する時に、圏論を用いて数学的に行うことができる。
 
@@ -77,34 +77,34 @@
   ２つ目は$S$から$get$で取り出した$A$の値を$S$に$set$した時、元の$S$と一致することを示している。
   ３つ目はある$S$に$A$を置き換えた時、その前の$A$が上書きされることを示している。
 
-  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{review}{A}{S}$、$\mor{match}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$review$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$、不可能であればそのまま$S$を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$review$、$match$で記述する
+  次にLensの一種の双対であるPrismを紹介する。これは部分型としての包含関係を表す概念であり、二つの関数$\mor{up}{A}{S}$、$\mor{down}{S}{S+A}$で構成される。この場合$A$から$S$への値にアップキャストする操作は$up$関数により容易に行えて、$S$から$A$への値のダウンキャストは可能であれば$A$、不可能であればそのまま$S$を返す操作とみなせる。例えば、整数の内の奇数のみを持つ型\pr{Odd}を考え、\pr{Integer}型との包含関係を$up$、$down$で記述する
   \begin{lstlisting}   
     newtype Odd = Odd{toInt :: Integer} deriving Show
-    match :: Integer -> Either Integer Odd
-    match x = if odd x 
+    down :: Integer -> Either Integer Odd
+    down x = if odd x 
       then Right (Odd x)
       else Left x
-    review :: Odd -> Integer
-    review = toInt
+    up :: Odd -> Integer
+    up = toInt
 
-    -- >>> match 4
+    -- >>> down 4
     -- Left 4
-    -- >>> match 3
+    -- >>> down 3
     -- Right (Odd {toInt = 3})
-    -- >>> review (Odd 5)
+    -- >>> up (Odd 5)
     -- 5
   \end{lstlisting}
-  Lensと同様にPrismでも、包含関係を間接的に示すのに$review,\ match$関数を用いた等式で示す。また等式における$[id_S,review]$は積における射の対の双対である。
-  \[match\circ review = \iota_A\mor{}{A}{S+A}\]
-  \[[id_S,review]\circ match = id_S\mor{}{S}{S}\]
-  \[(match+A)\circ match = \iota_S\circ match\mor{}{A}{(S+A)+A}\]
+  Lensと同様にPrismでも、包含関係を間接的に示すのに$up,\ down$関数を用いた等式で示す。また等式における$[id_S,up]$は積における射の対の双対である。
+  \[down\circ up = \iota_A\mor{}{A}{S+A}\]
+  \[[id_S,up]\circ down = id_S\mor{}{S}{S}\]
+  \[(down+A)\circ down = \iota_S\circ down\mor{}{A}{(S+A)+A}\]
   １つ目の等式は$A$をアップキャストをしてからダウンキャストを行うと、$S+A$における$A$の方の値が必ず得られて、それが最初の$A$を$S+A$に入射したものと一致することを示している。
-  ２つ目の等式は$S$が$match$によってダウンキャストが成功した場合、更にアップキャストを行なったものが最初の$S$と一致し、ダウンキャストが失敗した場合も最初の$S$と一致することを示している。
+  ２つ目の等式は$S$が$down$によってダウンキャストが成功した場合、更にアップキャストを行なったものが最初の$S$と一致し、ダウンキャストが失敗した場合も最初の$S$と一致することを示している。
   
-  ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(A,S)$、Prismの$\mor{review}{A}{S}$と$\mor{match}{S}{S+A}$の組の全体を$Prism(A,S)$と表記することにしよう。ただしLens則、Prism則を満たすかどうかは問わないことにする。するとこれはHaskellにおいてはそのような多相型を定義することである。
+  ここでLensの$\mor{set}{S\times A}{S}$と$\mor{get}{S}{A}$の組の全体を$Lens(A,S)$、Prismの$\mor{up}{A}{S}$と$\mor{down}{S}{S+A}$の組の全体を$Prism(A,S)$と表記することにしよう。ただしLens則、Prism則を満たすかどうかは問わないことにする。するとこれはHaskellにおいてはそのような多相型を定義することである。
   \begin{lstlisting}
     data Lens s a = Lens{get :: s -> a , set :: (s, a) -> s}
-    data Prism s a = Prism{review :: a -> s , match :: s -> Either s a}
+    data Prism s a = Prism{up :: a -> s , down :: s -> Either s a}
     -- >>> :t Lens
     -- Lens :: (s -> a) -> ((s, a) -> s) -> Lens s a
     -- >>> :t Prism
