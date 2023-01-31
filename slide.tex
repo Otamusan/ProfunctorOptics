@@ -123,40 +123,40 @@
     \end{alignat*}
     Lensと同様に\[\mathrm{Prism}(A,A',S,S') := \inset{S}{S'+A}\times\inset{A'}{S}\]とする。
   \end{frame}
-  \begin{frame}\frametitle{LensとPrismの双対性}
-    \begin{theorem}
-     LensとPrismは双対である。
-    \end{theorem}
-    \vspace{\baselineskip}
-    二つの概念が双対であるとは、それを構成する射の向きがすべて逆であることである。例えば積と余積はどちらも以下の図式によって定義される。
-    {\tiny
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (X) at (0, 1.5) {$X$};
-        \node (AB) at (0, 0) {$A\times B$};
-        \node (A) at (-1.5, 0) {$A$};
-        \node (B) at (1.5, 0) {$B$};
+  % \begin{frame}\frametitle{LensとPrismの双対性}
+  %   \begin{theorem}
+  %    LensとPrismは双対である。
+  %   \end{theorem}
+  %   \vspace{\baselineskip}
+  %   二つの概念が双対であるとは、それを構成する射の向きがすべて逆であることである。例えば積と余積はどちらも以下の図式によって定義される。
+  %   {\tiny
+  %   \begin{center}
+  %     \begin{tikzpicture}[auto]
+  %       \node (X) at (0, 1.5) {$X$};
+  %       \node (AB) at (0, 0) {$A\times B$};
+  %       \node (A) at (-1.5, 0) {$A$};
+  %       \node (B) at (1.5, 0) {$B$};
 
-        \draw[->] (X) to node[swap]{$f$}(A);
-        \draw[->] (X) to node{$g$}(B);
-        \draw[->] (AB) to node{$\pi_A$}(A);
-        \draw[->] (AB) to node[swap]{$\pi_B$}(B);
-        \draw[->] (X) to node{$\tuple{f,g}$}(AB);
+  %       \draw[->] (X) to node[swap]{$f$}(A);
+  %       \draw[->] (X) to node{$g$}(B);
+  %       \draw[->] (AB) to node{$\pi_A$}(A);
+  %       \draw[->] (AB) to node[swap]{$\pi_B$}(B);
+  %       \draw[->] (X) to node{$\tuple{f,g}$}(AB);
 
-        \node (X) at (3.5, 1.5) {$X$};
-        \node (AB) at (3.5, 0) {$A+B$};
-        \node (A) at (2, 0) {$A$};
-        \node (B) at (5, 0) {$B$};
+  %       \node (X) at (3.5, 1.5) {$X$};
+  %       \node (AB) at (3.5, 0) {$A+B$};
+  %       \node (A) at (2, 0) {$A$};
+  %       \node (B) at (5, 0) {$B$};
 
-        \draw[<-] (X) to node[swap]{$f$}(A);
-        \draw[<-] (X) to node{$g$}(B);
-        \draw[<-] (AB) to node{$\iota_A$}(A);
-        \draw[<-] (AB) to node[swap]{$\iota_B$}(B);
-        \draw[<-] (X) to node{$[f,g]$}(AB);
-      \end{tikzpicture}
-    \end{center}}
-    これによってLens\ $\inset{S}{A}\times \inset{S\times A'}{S'}$とPrism\ $\inset{S}{S'+A}\times\inset{A'}{S}$が双対の関係にあると分かる。
-  \end{frame}
+  %       \draw[<-] (X) to node[swap]{$f$}(A);
+  %       \draw[<-] (X) to node{$g$}(B);
+  %       \draw[<-] (AB) to node{$\iota_A$}(A);
+  %       \draw[<-] (AB) to node[swap]{$\iota_B$}(B);
+  %       \draw[<-] (X) to node{$[f,g]$}(AB);
+  %     \end{tikzpicture}
+  %   \end{center}}
+  %   これによってLens\ $\inset{S}{A}\times \inset{S\times A'}{S'}$とPrism\ $\inset{S}{S'+A}\times\inset{A'}{S}$が双対の関係にあると分かる。
+  % \end{frame}
   \begin{frame}\frametitle{Opticの定義}
     \begin{definition}[Optic]
       四つの集合$A,A',S,S'$に対するOpticの集合を\[\mathrm{Optic}(A,A',S,S') := \int^M \inset{S}{M\otimes A}\times \inset{M\otimes A'}{S'}\]と定義する。
@@ -166,18 +166,17 @@
 
     \begin{mydescription}
       \item[モノイダル積$\otimes$] 直積$\times$、直和$+$の一般化
-      \item[コエンド$\int^M$] 集合で添字付けられた直和集合を取り、ある同値関係で割る操作
+      \item[コエンド$\int^M$] 一種の直和集合
     \end{mydescription}
   \end{frame}
   \begin{frame}\frametitle{モノイダル積}
     集合を要素として定義される二項演算$\otimes$がモノイダル積である時以下の性質を満たす。\\
     \vspace{\baselineskip}
-
+    また二つの集合$A,B$の間に全単射が存在する場合$A\cong B$と表記する。
     \begin{mydescription}
-      \item[結合則] $(A\otimes B)\otimes C$と$A\otimes(B\otimes C)$が一対一対応
-      \item[単位則] ある集合$I$が存在し、$A\otimes I$と$A$が一対一対応\\
-      直積の場合の$I$は単集合であり、直和の場合は空集合である。
-      \item[並列性] 集合のみならず、二つの写像$\mor{f}{A}{B},\ \mor{g}{C}{D}$を合成した写像
+      \item[結合則] $(A\otimes B)\otimes C\cong A\otimes(B\otimes C)$
+      \item[単位則] ある集合$I$が存在し、$A\otimes I\cong A$\\
+      \item[並列性] 集合のみならず写像のモノイダル積も取ることができる。つまり二つの写像$\mor{f}{A}{B},\ \mor{g}{C}{D}$を合成した写像
       \[\mor{f\otimes g}{A\otimes C}{B\otimes D}\]が得られる。
     \end{mydescription}
   \end{frame}
@@ -264,7 +263,7 @@
         \draw[-] (r) to [bend left=10](A');
       \end{tikzpicture}
     \end{center}
-    Hom関手の連続性$\inset{A}{B\times C}\cong\inset{A}{B}\times \inset{A}{C}$より、
+    $\inset{A}{B\times C}\cong\inset{A}{B}\times \inset{A}{C}$より、
     \begin{center}
       \begin{tikzpicture}
         \node (S) at (0, 0) {$S$};
@@ -282,7 +281,7 @@
         \draw[-] (r) to [bend left=10](A');
       \end{tikzpicture}
     \end{center}
-    となり、余米田の補題$FA\cong\int^M [A,M]\times FM$から
+    $FA\cong\int^M [A,M]\times FM$から
     \begin{center}
       \begin{tikzpicture}
         \node (S) at (0, 0) {$S$};
@@ -326,7 +325,7 @@
         \draw[-] (r) to [bend left=10](A');
       \end{tikzpicture}
     \end{center}
-    反変Hom関手の余連続性$\inset{A+B}{C}\cong\inset{A}{C}+\inset{B}{C}$より、
+    $\inset{A+B}{C}\cong\inset{A}{C}+\inset{B}{C}$より、
     \begin{center}
       \begin{tikzpicture}
         \node (S) at (0, 0) {$S$};
@@ -343,7 +342,7 @@
         \draw[-] (S') to [bend left=10]node [draw,inner sep=1pt, fill=white]{\tiny$r_A$}(A');
       \end{tikzpicture}
     \end{center}
-    となり、余米田の補題$FA\cong\int^M [M,A]\times FM$から
+    $FA\cong\int^M [M,A]\times FM$から
     \begin{center}
       \begin{tikzpicture}
         \node (S) at (0, 0) {$S$};
@@ -362,7 +361,7 @@
         \draw[-] (S') to [bend left=10]node [draw,inner sep=1pt, fill=white]{\tiny$r_A$}(A');
       \end{tikzpicture}
     \end{center}
-    よって$\mathrm{Optics}_\times(A,A',S,S') \cong \mathrm{Prism}(A,A',S,S')$
+    よって$\mathrm{Optics}_+(A,A',S,S') \cong \mathrm{Prism}(A,A',S,S')$
   \end{frame}
   \begin{frame}
     \frametitle{集合の圏}
@@ -467,8 +466,8 @@
           \draw[->] (TP2) to node{$P(a^{-1}\!\!,a)$}(TTP);
         \end{tikzpicture}
         \begin{tikzpicture}[auto]
-          \node (P) at (0, 0) {$P$};
-          \node (TP) at (2, 0) {$P(I\otimes -,I\otimes -)$};
+          \node (P) at (0, 0) {$P(A,A')$};
+          \node (TP) at (2, 0) {$P(I\otimes A,I\otimes A')$};
           \node (P2) at (2, -1) {$P$};
           \draw[->] (P) to node{$\zeta_I$}(TP);
           \draw[->] (TP) to node{$P(\lambda^{-1},\lambda)$}(P2);
@@ -476,8 +475,7 @@
         \end{tikzpicture}
       \end{center}}
       \end{definition}
-      ただし、プロファンクターとは圏上の二項演算であって、二つの射$\mor{f}{B}{A},\ \mor{g}{C}{D}$に対して$\mor{P(f,g)}{P(A,C)}{P(B,D)}$が得られる。\\
-      ただし、モノイダル積とは射$f$の向きが異なることに注意\\
+      ただし、プロファンクターは圏上の二項演算の一種である。
   \end{frame}
   \begin{frame}
     \frametitle{丹原加群の圏}
@@ -522,6 +520,10 @@
     また$\incat{Optic}{Set}$は$\cat{Optic}$から$\cat{Set}$への準同型写像の成す圏である。  
   \end{frame}
   \begin{frame}
-    
+    \frametitle{まとめ}
+    \begin{itemize}
+      \item 既存の論文の証明の一部を補完する程度の成果しか出なかった。
+      \item 主に2-categoryに関する知識が足りず、圏論側の論文を読み込むことができなかった。
+    \end{itemize}
   \end{frame}
 \end{document}
