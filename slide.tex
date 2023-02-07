@@ -76,27 +76,20 @@
     \titlepage
   \end{frame}
   \begin{frame}\frametitle{目的}
+
     データへのアクセサの一般化であるLensやキャストの一般化であるPrismは更にOpticsという概念へと一般化される。\\
-    これらの一般化には圏論が用いられるが、圏論は自身を抽象化できることが多く。Opticsに関する議論を更に高度な圏論で一般化できると考えた。\\
     \vspace{\baselineskip}
-    特に圏同値\[\cat{Tamb}\simeq\incat{Optic}{Set}\]の圏論的一般化を試みた。
+
+    これらの一般化には圏論が用いられるが、圏論は自身を抽象化できることが多く。Opticsに関する議論を更に高度な圏論で一般化できると考えた。\\
   \end{frame}
-  \begin{frame}\frametitle{表記について}
-    今回は圏論の具体例として集合の操作を中心に用いる。これは以下のようにプログラムと対応するため適宜読み替えてほしい。また時間の都合上厳密な議論は省略する。
-    \begin{table}[h]
-      \centering
-      \begin{tabular}{|c|c|c|c|c|c|c|}
-        \hline
-        集合&集合&写像&要素\\
-              &$A$ &$\mor{f}{A}{B}$&$a\in A$\\
-        \hline
-    プログラム&型  &関数&値\\
-              (Haskell)&\pr{a}&\pr{f :: a -> b}&\pr{x :: a}\\
-        \hline
-      \end{tabular}
-    \end{table}
-    また集合$A,B$の直積集合、直和集合を$A\times B$、$A+B$とし、\\
-    集合$A$を集合$B$へ写す写像の集合を$\inset{A}{B}$とする。
+  \begin{frame}\frametitle{全体の構成}
+    \begin{itemize}
+      \item 最初に導入として比較的身近なLensとPrismを紹介し、Opticを定義してOpticがそれらの一般化であることを示す。\\
+      \vspace{\baselineskip}
+      \item 次に丹原加群を定義して、Opticとの関係性を丹原Double圏同値として示す。\\
+      \vspace{\baselineskip}
+      \item そして最後にこれらの主要な結果として、Opticの別の形態を与えるプロファンクターの表現定理を述べる。
+    \end{itemize}
   \end{frame}
   \begin{frame}\frametitle{データアクセサの一般化Lens}
     \begin{definition}[Lens]
@@ -108,260 +101,37 @@
       \mathrm{get}:\ &S\ &\longrightarrow \ &A \ \ \ &\mathrm{set}:\ &S\times A'\ &\longrightarrow \ &S'\\
       &\tuple{b,a}&\longmapsto\ &a      &&\tuple{\tuple{b,a},a'}&\longmapsto\ &\tuple{b, a'}
     \end{alignat*}
-    またこのような二つの写像の組の全体を$\mathrm{Lens}(A,A',S,S')$とする。すなわち\[\mathrm{Lens}(A,A',S,S') := \inset{S}{A}\times \inset{S\times A'}{S'}\]となる。
+    またこのような二つの写像の組の全体を$\mathrm{Lens}(A,A',S,S')$とする。すなわち\[\mathrm{Lens}(A,A',S,S') := \inset{S}{A}\times \inset{S\times A'}{S'}\]となる。($\inset{A}{B}$は集合$A$から$B$への写像の集合とする。)
   \end{frame}
   \begin{frame}\frametitle{キャストの一般化Prism}
     \begin{definition}[Prism]
       Prismは以下の二つの射で構成される。
-      \[\mor{\mathrm{down}}{S}{S' + A},\ \mor{\mathrm{up}}{A'}{S'}\]
+      \[\mor{\mathrm{downcast}}{S}{S' + A},\ \mor{\mathrm{upcast}}{A'}{S'}\]
     \end{definition}
     ここで$S:=B+ A,\ S':=B+ A'$とすると、
     \begin{alignat*}{20}
-      \mathrm{down}:\ &S\ \ &\longrightarrow \ \ &S'+&A & \ \ \ \ \mathrm{up}: &A'&\longrightarrow &\ S'\\
+      \mathrm{downcast}:\ &S\ \ &\longrightarrow \ \ &S'+&A & \ \ \ \ \mathrm{upcast}: &A'&\longrightarrow &\ S'\\
       &a \ \ &\longmapsto \ \ &&a &&a'&\longmapsto &a'\\
       &b \ \ &\longmapsto \ \ &b& &
     \end{alignat*}
     Lensと同様に\[\mathrm{Prism}(A,A',S,S') := \inset{S}{S'+A}\times\inset{A'}{S}\]とする。
   \end{frame}
-  % \begin{frame}\frametitle{LensとPrismの双対性}
-  %   \begin{theorem}
-  %    LensとPrismは双対である。
-  %   \end{theorem}
-  %   \vspace{\baselineskip}
-  %   二つの概念が双対であるとは、それを構成する射の向きがすべて逆であることである。例えば積と余積はどちらも以下の図式によって定義される。
-  %   {\tiny
-  %   \begin{center}
-  %     \begin{tikzpicture}[auto]
-  %       \node (X) at (0, 1.5) {$X$};
-  %       \node (AB) at (0, 0) {$A\times B$};
-  %       \node (A) at (-1.5, 0) {$A$};
-  %       \node (B) at (1.5, 0) {$B$};
-
-  %       \draw[->] (X) to node[swap]{$f$}(A);
-  %       \draw[->] (X) to node{$g$}(B);
-  %       \draw[->] (AB) to node{$\pi_A$}(A);
-  %       \draw[->] (AB) to node[swap]{$\pi_B$}(B);
-  %       \draw[->] (X) to node{$\tuple{f,g}$}(AB);
-
-  %       \node (X) at (3.5, 1.5) {$X$};
-  %       \node (AB) at (3.5, 0) {$A+B$};
-  %       \node (A) at (2, 0) {$A$};
-  %       \node (B) at (5, 0) {$B$};
-
-  %       \draw[<-] (X) to node[swap]{$f$}(A);
-  %       \draw[<-] (X) to node{$g$}(B);
-  %       \draw[<-] (AB) to node{$\iota_A$}(A);
-  %       \draw[<-] (AB) to node[swap]{$\iota_B$}(B);
-  %       \draw[<-] (X) to node{$[f,g]$}(AB);
-  %     \end{tikzpicture}
-  %   \end{center}}
-  %   これによってLens\ $\inset{S}{A}\times \inset{S\times A'}{S'}$とPrism\ $\inset{S}{S'+A}\times\inset{A'}{S}$が双対の関係にあると分かる。
-  % \end{frame}
   \begin{frame}\frametitle{Opticの定義}
     \begin{definition}[Optic]
       四つの集合$A,A',S,S'$に対するOpticの集合を\[\mathrm{Optic}(A,A',S,S') := \int^M \inset{S}{M\otimes A}\times \inset{M\otimes A'}{S'}\]と定義する。
     \end{definition}
-    ただしこの定義に出てくる以下の二つの概念は個別に詳しく説明する。\\
-    \vspace{\baselineskip}
-
     \begin{mydescription}
-      \item[モノイダル積$\otimes$] 直積$\times$、直和$+$の一般化
-      \item[コエンド$\int^M$] 一種の直和集合
-    \end{mydescription}
-  \end{frame}
-  \begin{frame}\frametitle{モノイダル積}
-    集合を要素として定義される二項演算$\otimes$がモノイダル積である時以下の性質を満たす。\\
-    \vspace{\baselineskip}
-    また二つの集合$A,B$の間に全単射が存在する場合$A\cong B$と表記する。
-    \begin{mydescription}
-      \item[結合則] $(A\otimes B)\otimes C\cong A\otimes(B\otimes C)$
-      \item[単位則] ある集合$I$が存在し、$A\otimes I\cong A$\\
-      \item[並列性] 集合のみならず写像のモノイダル積も取ることができる。つまり二つの写像$\mor{f}{A}{B},\ \mor{g}{C}{D}$を合成した写像
+      \item[モノイダル積$\otimes$] 直積$\times$、直和$+$の一般化で集合のみならず写像のモノイダル積も取ることができる。つまり二つの写像$\mor{f}{A}{B},\ \mor{g}{C}{D}$を合成した写像
       \[\mor{f\otimes g}{A\otimes C}{B\otimes D}\]が得られる。
+      \item[コエンド$\int^M$] 対象を添字とする直和集合
     \end{mydescription}
   \end{frame}
-  \begin{frame}\frametitle{コエンド}
-    $\int^M \inset{S}{M\otimes A}\times \inset{M\otimes A'}{S'}$の任意の要素はある集合$M$に対して$\mor{l}{S}{M\otimes A},\ \mor{r}{M\otimes A'}{S}$となるような写像の組$\tuple{l,r}$である。\\
+  \begin{frame}\frametitle{LensはOpticである}
+    写像$\tuple{\mathrm{get},\mathrm{id}}\mor{}{S}{S\times A}$を\[\tuple{\mathrm{get},\mathrm{id}}(s)=\tuple{\mathrm{get}(s),s}\]と定義する。
+
+    すると、$\tuple{\tuple{\mathrm{get},\mathrm{id}},\mathrm{set}}\in \inset{S}{S\times A}\times \inset{S\times A'}{S'}$となるから\[\tuple{\tuple{\mathrm{get},\mathrm{id}},\mathrm{set}}\in \int^{M}\inset{S}{M\times A}\times \inset{M\times A'}{S'}\]である。これによってLensがOpticの一種であることが分かる。\\
     \vspace{\baselineskip}
-    ただし写像$\mor{l}{S}{M\otimes A},\mor{r}{N\otimes A'}{S'},\ \mor{f}{M}{N}$に対して\[\tuple{(f\otimes A)\circ l,r} = \tuple{l,r\circ (f\otimes A')}\]が成り立つ。
-    {\scriptsize
-    \begin{center}
-      \begin{tikzpicture}[auto]
-        \node (S) at (0, 0) {\Big( $S$};
-        \node (MA) at (2, 0) {$M\otimes A$};
-        \node (NA) at (4, 0) {$N\otimes A$\Big)};
-        \node (NA') at (6, 0) {\Big( $N\otimes A'$};
-        \node (S') at (8, 0) {$S'$\Big)};
-        \draw[->] (S) to node{$l$}(MA);
-        \draw[->] (MA) to node{$f\otimes A$}(NA);
-        \draw[->] (NA') to node{$r$}(S');
-
-        \node (S) at (0, -1.2) {\Big( $S$};
-        \node (MA) at (2, -1.2) {$M\otimes A$\Big)};
-        \node (MA') at (4, -1.2) {\Big( $M\otimes A'$};
-        \node (NA') at (6, -1.2) {$N\otimes A'$};
-        \node (S') at (8, -1.2) {$S'$\Big)};
-        \draw[->] (S) to node{$l$}(MA);
-        \draw[->] (MA') to node{$f\otimes A'$}(NA');
-        \draw[->] (NA') to node{$r$}(S');
-      \end{tikzpicture}
-    \end{center}}
-  \end{frame}
-  \begin{frame}\frametitle{ストリングダイアグラム}
-    モノイダル積の並列性$\mor{f\otimes g}{A\otimes C}{B\otimes D}$を以下のように表す。
-    \begin{center}
-      \begin{tikzpicture}
-        \node (A) at (0, 0) {$A$};
-        \node (B) at (2, 0) {$B$};
-        \node (C) at (0, -1) {$C$};
-        \node (D) at (2, -1) {$D$};
-        \draw[-] (A) to node[draw, fill=white]{\tiny{$f$}}(B);
-        \draw[-] (C) to node[draw, fill=white]{\tiny{$g$}}(D);
-      \end{tikzpicture}
-    \end{center}
-    すると$\int^M \inset{S}{M\otimes A}\times \inset{M\otimes A'}{S'}$のある要素$\tuple{l,r}$は
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$M$};
-        \node (A) at (2, -0.5) {$A$};
-
-        \node[draw] (l) at (1, 0) {{\tiny$l$}};
-        \draw[-] (S) to (l);
-        \draw[-] (l) to [bend left=10] (M);
-        \draw[-] (l) to [bend right=10](A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3, -0.5) {$A'$};
-        \node[draw] (r) at (4, 0) {{\tiny$r$}};
-        \draw[-] (r) to (S');
-        \draw[-] (r) to [bend right=10] (M);
-        \draw[-] (r) to [bend left=10](A');
-      \end{tikzpicture}
-    \end{center}
-    と書くことができる。また$l,r$から伸びる$M$についてはコエンドの性質により線を繋げるのが妥当である。
-  \end{frame}
-  \begin{frame}
-    \frametitle{LensはOpticである}
-    モノイダル積$\otimes$が直積$\times$である時、
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$M$};
-        \node (A) at (2, -0.5) {$A$};
-
-        \node[draw] (l) at (1, 0) {{\tiny$l$}};
-        \draw[-] (S) to (l);
-        \draw[-] (l) to [bend left=10] (M);
-        \draw[-] (l) to [bend right=10](A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3, -0.5) {$A'$};
-        \node[draw] (r) at (4, 0) {{\tiny$r$}};
-        \draw[-] (r) to (S');
-        \draw[-] (r) to [bend right=10] (M);
-        \draw[-] (r) to [bend left=10](A');
-      \end{tikzpicture}
-    \end{center}
-    $\inset{A}{B\times C}\cong\inset{A}{B}\times \inset{A}{C}$より、
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$M$};
-        \node (A) at (2, -0.5) {$A$};
-
-        \draw[-] (S) to [bend left=10] node [draw,inner sep=1pt, fill=white]{\tiny$l_M$} (M);
-        \draw[-] (S) to [bend right=10]node [draw,inner sep=1pt, fill=white]{\tiny$l_A$}(A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3, -0.5) {$A'$};
-        \node[draw] (r) at (4, 0) {{\tiny$r$}};
-        \draw[-] (r) to (S');
-        \draw[-] (r) to [bend right=10] (M);
-        \draw[-] (r) to [bend left=10](A');
-      \end{tikzpicture}
-    \end{center}
-    $FA\cong\int^M [A,M]\times FM$から
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (A) at (1.5, -0.5) {$A$};
-        \node (S2) at (2.5, 0.5) {$S$};
-        \draw[-,dashed] (S) to [bend left=10] (S2);
-
-
-        \draw[-] (S) to [bend right=10]node [draw,inner sep=1pt, fill=white]{\tiny$l_A$}(A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (2.5, -0.5) {$A'$};
-        \node[draw] (r) at (4, 0) {{\tiny$r$}};
-        \draw[-] (r) to (S');
-        \draw[-] (r) to [bend right=10]node [draw,inner sep=1pt, fill=white]{\tiny$l_M$} (S2);
-        \draw[-] (r) to [bend left=10](A');
-
-      \end{tikzpicture}
-    \end{center}
-    よって$\mathrm{Optics}_\times(A,A',S,S') \cong \mathrm{Lens}(A,A',S,S')$
-  \end{frame}
-  \begin{frame}
-    \frametitle{PrismはOpticである}
-    モノイダル積$\otimes$が直和$+$である時、
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$M$};
-        \node (A) at (2, -0.5) {$A$};
-
-        \node[draw] (l) at (1, 0) {{\tiny$l$}};
-        \draw[-] (S) to (l);
-        \draw[-] (l) to [bend left=10] (M);
-        \draw[-] (l) to [bend right=10](A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3, -0.5) {$A'$};
-        \node[draw] (r) at (4, 0) {{\tiny$r$}};
-        \draw[-] (r) to (S');
-        \draw[-] (r) to [bend right=10] (M);
-        \draw[-] (r) to [bend left=10](A');
-      \end{tikzpicture}
-    \end{center}
-    $\inset{A+B}{C}\cong\inset{A}{C}+\inset{B}{C}$より、
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$M$};
-        \node (A) at (2, -0.5) {$A$};
-        \node[draw] (l) at (1, 0) {{\tiny$l$}};
-        \draw[-] (S) to (l);
-        \draw[-] (l) to [bend left=10] (M);
-        \draw[-] (l) to [bend right=10](A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3, -0.5) {$A'$};
-        \draw[-] (S') to [bend right=10] node [draw,inner sep=1pt, fill=white]{\tiny$r_M$} (M);
-        \draw[-] (S') to [bend left=10]node [draw,inner sep=1pt, fill=white]{\tiny$r_A$}(A');
-      \end{tikzpicture}
-    \end{center}
-    $FA\cong\int^M [M,A]\times FM$から
-    \begin{center}
-      \begin{tikzpicture}
-        \node (S) at (0, 0) {$S$};
-        \node (M) at (2.5, 0.5) {$S'$};
-        \node (A) at (2.5, -0.5) {$A$};
-        \node[draw] (l) at (1, 0) {{\tiny$l$}};
-        \draw[-,dashed] (S') to [bend right=10] (M);
-
-        \draw[-] (S) to (l);
-        \draw[-] (l) to [bend left=10] (M);
-        \draw[-] (l) to [bend right=10](A);
-
-        \node (S') at (5, 0) {$S'$};
-        \node (A') at (3.5, -0.5) {$A'$};
-        \draw[-] (M) to [bend right=10] node [draw,inner sep=1pt, fill=white]{\tiny$r_M$} (l);
-        \draw[-] (S') to [bend left=10]node [draw,inner sep=1pt, fill=white]{\tiny$r_A$}(A');
-      \end{tikzpicture}
-    \end{center}
-    よって$\mathrm{Optics}_+(A,A',S,S') \cong \mathrm{Prism}(A,A',S,S')$
+    またPrismの場合も同様に、写像$\mor{\tuple{\mathrm{\mathrm{upcast},id}}}{A'+S'}{S'}$を構成すれば簡単に示せる。
   \end{frame}
   \begin{frame}
     \frametitle{集合の圏}
@@ -512,18 +282,47 @@
   \end{frame}
   \begin{frame}
     \frametitle{Opticの圏と丹原加群}
-    \begin{theorem}
-      \[\cat{Tamb}\simeq\incat{Optic}{Set}\]
-    \end{theorem}
-    ただし$\simeq$は左右の圏が圏同値であることを表している。また圏同値は圏の同型を緩めたものである。\\
+    丹原加群は$\cat{Optic}$から$\cat{Set}$への準同型写像と対応する。\\
+    これは厳密には以下の定理として示せる。\\
     \vspace{\baselineskip}
-    また$\incat{Optic}{Set}$は$\cat{Optic}$から$\cat{Set}$への準同型写像の成す圏である。  
+
+    \begin{theorem}[丹原Double圏同値]
+      \[\cat{Tamb}\simeq\incat{Optic}{Set}\]
+      $\simeq$は圏の同型を緩めた等価性とし、$\incat{Optic}{Set}$は$\cat{Optic}$から$\cat{Set}$への準同型写像の成す圏である。
+    \end{theorem}
+    \vspace{\baselineskip}
+
+    また特に示さないが既存の文献での証明は行間が広いため証明の一部を補完した。
+  \end{frame}
+  \begin{frame}\frametitle{プロファンクターオプティクス}
+    最後に最終目標であるプロファンクターの表現定理を示す。
+    \begin{theorem}[プロファンクターの表現定理]
+      \[\cat{Optic}(A,A',S,S') \cong \int_P \inset{P(A,A')}{P(S,S')}\]
+      ただし$P$は任意の丹原加群とする。
+    \end{theorem}
+    \vspace{\baselineskip}
+
+    本来$P$は丹原加群ではなく、$\cat{Optic}$から$\cat{Set}$の準同型写像であるが、前スライドの丹原Double圏同値によって丹原加群とみなせる。\\
+    \vspace{\baselineskip}
+    また左辺のような形で表したOpticをプロファンクターオプティクスと呼び、実用ではこちらを用いることが多い。
   \end{frame}
   \begin{frame}
     \frametitle{まとめ}
     \begin{itemize}
-      \item 既存の論文の証明の一部を補完する程度の成果しか出なかった。
-      \item 主に2-categoryに関する知識が足りず、圏論側の論文を読み込むことができなかった。
+      \item 丹原Double圏同値の証明の一部を補完できた。\\
+      \vspace{\baselineskip}
+      \item 上の定理の一般化となるように思われる定理を2-categoryに関する論文から見つけ出すことができた。
+    \end{itemize}
+  \end{frame}
+  \begin{frame}\frametitle{今後の課題}
+    \begin{itemize}
+      \item 2-categoryに関する体系的な知識を身につける。\\
+      \vspace{\baselineskip}
+
+      \item 丹原Double圏同値の一貫した証明を示す。\\
+      \vspace{\baselineskip}
+
+      \item 丹原Double圏同値を2-categoryによって一般化する。
     \end{itemize}
   \end{frame}
 \end{document}
