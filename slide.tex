@@ -68,7 +68,6 @@
 }
 {\end{description}}
 \title{プロファンクターオプティクスの理論と実装}
-\author{\input{../myname}}
 \usetheme{Madrid}
 \setbeamertemplate{navigation symbols}{}
 \begin{document}
@@ -80,7 +79,7 @@
     データへのアクセサの一般化であるLensやキャストの一般化であるPrismは更にOpticsという概念へと一般化される。\\
     \vspace{\baselineskip}
 
-    これらの一般化には圏論が用いられるが、圏論は自身を抽象化できることが多く。Opticsに関する議論を更に高度な圏論で一般化できると考えた。\\
+    これらの一般化には圏論が用いられるが、興味深いことに圏論は自身を抽象化できる。そのためOpticも更に一般化できると考えた。    
   \end{frame}
   \begin{frame}\frametitle{全体の構成}
     \begin{itemize}
@@ -283,7 +282,9 @@
   \begin{frame}
     \frametitle{Opticの圏と丹原加群}
     丹原加群は$\cat{Optic}$から$\cat{Set}$への準同型写像と対応する。\\
-    これは厳密には以下の定理として示せる。\\
+    \vspace{\baselineskip}
+
+    この対応は既存の文献において次の定理で知られているが、証明は行間が広いため定理の厳密化を行なった。
     \vspace{\baselineskip}
 
     \begin{theorem}[丹原Double圏同値]
@@ -291,11 +292,9 @@
       $\simeq$は圏の同型を緩めた等価性とし、$\incat{Optic}{Set}$は$\cat{Optic}$から$\cat{Set}$への準同型写像の成す圏である。
     \end{theorem}
     \vspace{\baselineskip}
-
-    また特に示さないが既存の文献での証明は行間が広いため証明の一部を補完した。
   \end{frame}
   \begin{frame}\frametitle{プロファンクターオプティクス}
-    最後に最終目標であるプロファンクターの表現定理を示す。
+    最後に最終目標であるプロファンクターの表現定理を紹介する。
     \begin{theorem}[プロファンクターの表現定理]
       \[\cat{Optic}(A,A',S,S') \cong \int_P \inset{P(A,A')}{P(S,S')}\]
       ただし$P$は任意の丹原加群とする。
@@ -309,20 +308,32 @@
   \begin{frame}
     \frametitle{まとめ}
     \begin{itemize}
-      \item 丹原Double圏同値の証明の一部を補完できた。\\
-      \vspace{\baselineskip}
-      \item 上の定理の一般化となるように思われる定理を2-categoryに関する論文から見つけ出すことができた。
+      \item LensとPrismを定義し、それらがOpticの一例であることを示した。
+      \item 丹原加群を定義し、丹原Double圏同値によるOpticとの関係を示した。
+      \item 丹原Double圏同値の応用として、プロファンクターの表現定理を示した。
     \end{itemize}
+    \vspace{\baselineskip}
+
+    また具体的な成果として、丹原Double圏同値の定理の厳密化を行なった。
+
   \end{frame}
   \begin{frame}\frametitle{今後の課題}
     \begin{itemize}
-      \item 2-categoryに関する体系的な知識を身につける。\\
+      \item 2-圏論に関する体系的な知識を身につける。\\
       \vspace{\baselineskip}
 
-      \item 丹原Double圏同値の一貫した証明を示す。\\
+      \item 2-圏論を用いて丹原Double圏同値の一貫した証明を示す。\\
       \vspace{\baselineskip}
 
-      \item 丹原Double圏同値を2-categoryによって一般化する。
+      \item 丹原Double圏同値の一般化と思われる定理が2-圏論に存在するため、それとの関係を明らかにする。
     \end{itemize}
   \end{frame}
 \end{document}
+
+目的自身を抽象化できることは興味ぶかい
+興味を優先
+2-cateogry を今後の課題に。
+まとめを全体の構成と対応。
+
+論点を整理
+丹原の別証明
