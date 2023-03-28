@@ -30,109 +30,99 @@
 
 \input{../categoryTheoryIntro/preemble.tex}
 \newtheorem{lemma}[proof]{補題}
-\newcommand{\kintou}[2]{\leavevmode\hbox to #1{%
-    \kanjiskip\z@ plus 1fill minus 1fill\xkanjiskip\kanjiskip #2\hfil}}
+
 \begin{document}
   \title{丹原Double圏同値の証明}
   \maketitle
-  \pagebreak
+  モノイダル積の記号$\otimes$は省略する。
+  \begin{define}[Opticsの圏]\label{def-cat-of-optics}
+    対称モノイダル圏$\cat{C}$上の圏$\cat{Optic}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象] 対象の集合を$\obj{Optic}=\obj{C}\times \obj{C}$とする。
+				\item[射] 任意の対象$(A,A'), (S,S')$に対する射集合を\[\arset{Optic}{(A,A')}{(S,S')}=\int^{M}\arset{C}{S}{MA}\times\arset{C}{MA'}{S'}\]とする。また\[\arset{Optic}{(A,A')}{(S,S')}\cong\int^M\arset{C^{op}\times C}{(MA,MA')}{(S,S')}\]も成り立つ。
+				\item[射の合成] {\[\mor{\circ}{\int^{N} \arset{C}{T}{NS}\times\arset{C}{NS'}{T'}\times \int^{M}\arset{C}{S}{MA}\times \arset{C}{MA'}{S'}}{\int^{MN}\arset{C}{T}{(MN)A}\times \arset{C}{(MN)A'}{T'}}\]}を射の合成を行う写像とみなすということである。またこの写像は、ある対象$M,N$に対して
+        \[\tuple{l',r'}\circ_{MN}\tuple{l,r}=\tuple{a_{NMA}^{-1}\circ(Nl)\circ l',r'\circ(Nr)\circ a_{NMA'}^{-1}}\]
+        となるような操作である。
+				\item[恒等射の存在] 任意の対象$(S,S')$に対して\[\tuple{\lambda_S^{-1},\lambda_{S'}}:\int^{M}\arset{C}{S}{MS}\times \arset{C}{MS'}{S'}\]を恒等射とする。
+				\item[結合律]任意のOptic$\mor{\tuple{l'',r''}}{(T,T')}{(R,R')},\ \mor{\tuple{l',r'}}{(S,S')}{(T,T')},\ \mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+        \[(\tuple{l'',r''}\circ\tuple{l',r'})\circ\tuple{l',r'}=\tuple{l'',r''}\circ(\tuple{l',r'}\circ\tuple{l,r})\]が成り立つ。これは射の合成の定義により展開していけば簡単に示せる。
+				\item[単位元律]任意のOptic$\mor{\tuple{l,r}}{(A,A')}{(S,S')}$に対して、
+        \[\tuple{l,r}\circ\tuple{\lambda_A^{-1},\lambda_{A'}}=\tuple{l,r}\]
+        \[\tuple{\lambda_S^{-1},\lambda_{S'}}\circ\tuple{l,r}=\tuple{l,r}\]
+        が成り立つ。これはコエンドの超自然性とモノイダル圏の三角恒等式から示せる。
+			\end{mydescription}
+		\end{quote}
+  \end{define}
+  \begin{define}[丹原加群の圏]
+    対称モノイダル圏$\cat{C}$に対する圏$\cat{Tamb}$を以下のように定義する。
+    \begin{quote}
+			\begin{mydescription}
+				\item[対象]
+				以下の図式を可換にするようなProfunctor\ $\profunctor{P}{C}{C}$と自然変換$\zeta$の組$(P,\zeta)$を対象とする。
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P(A,A')$};
+            \node (TP) at (6, 0) {$P(MA,MA')$};
+            \node (TP2) at (0, -2) {$P((NM)A,(NM)A')$};
+            \node (TTP) at (6, -2) {$P(N(MA),N(MA'))$};
+            \draw[->] (P) to node{$\zeta_{M,A,A'}$}(TP);
+            \draw[->] (P) to node{$\zeta_{NM,A,A'}$}(TP2);
+            \draw[->] (TP) to node{$\Theta \zeta_N$}(TTP);
+            \draw[->] (TP2) to node{$P(a^{-1},a)$}(TTP);
+          \end{tikzpicture}
+        \end{center}
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P(A,A')$};
+            \node (TP) at (4, 0) {$P(IA,IA')$};
+            \node (P2) at (4, -2) {$P(A,A')$};
+            \draw[->] (P) to node{$\zeta_{I,A,A'}$}(TP);
+            \draw[->] (TP) to node{$P(\lambda^{-1}_A,\lambda_{A'})$}(P2);
+            \draw[->] (P) to(P2);
+          \end{tikzpicture}
+        \end{center}
+				\item[射]対象$(P,\zeta)$、$(Q,\eta)$の間の射を、
+        以下の図式を可換にするような自然変換$\nat{\alpha}{P}{Q}$とする。
+  
+        \begin{center}
+          \begin{tikzpicture}[auto]
+            \node (P) at (0, 0) {$P(A,A')$};
+            \node (Q) at (0, -2) {$Q(A,A')$};
+            \node (TP) at (3, 0) {$\int^{M}P(MA, MA)$};
+            \node (TQ) at (3, -2) {$\int^{M}Q(MA, MA')$};
+            \node (catpr) at (1.5, 1) {$\cat{Set}$};
+  
+            \draw[->] (P) to node{$\alpha_{A,A'}$}(Q);
+            \draw[->] (P) to node{$\zeta_{M,A,A'}$}(TP);
+            \draw[->] (TP) to node{$\int\alpha_{A,A'}$}(TQ);
+            \draw[->] (Q) to node{$\mu_{M,A,A'}$}(TQ);
+  
+            \node (P) at (6, 0) {$(P,\zeta)$};
+            \node (Q) at (6, -2) {$(Q,\mu)$};
+            \draw[->] (P) to node{$\alpha$}(Q);
+            \node (cattam) at (6, 1) {$\cat{Tamb}$};
+  
+          \end{tikzpicture}
+        \end{center}
+          
+				\item[射の合成]射$\alpha,\ \int\alpha$の自然変換の垂直合成をそのまま$\cat{Tamb}$における射の合成とする。
+				\item[恒等射の存在]
+				射の合成と同様に恒等自然変換を$\cat{Tamb}$の恒等射とする。
+				\item[結合律] 省略
+				\item[単位元律] 省略
+			\end{mydescription}
+		\end{quote}
+  \end{define}
   \begin{prop}[丹原Double圏同値]
-    任意のモノイダル圏$\cat{C}$上において$\cat{Tamb}\simeq\incat{Optic}{Set}$
+    任意の対称モノイダル圏$\cat{C}$上において$\cat{Tamb}\simeq\incat{Optic}{Set}$
   \end{prop}
   \begin{lemma}あるProfunctor $\profunctor{P}{C}{C}$に対して
-    \[\int_{AA'M}\inset{P(A,A')}{P(M\otimes A,M\otimes A')}\cong\int_{AA'SS'M}\inset{\arset{C^{op}\times C}{M\otimes A, M\otimes A'}{S,S'}}{\inset{P(A,A')}{P(S,S')}}\]
+    \[\int_{AA'M}\inset{P(A,A')}{P(MA,MA')}\cong\int_{AA'SS'M}\inset{\arset{C^{op}\times C}{MA, MA'}{S,S'}}{\inset{P(A,A')}{P(S,S')}}\]
   \end{lemma}
   \begin{proof}
     エンドを取る操作は関手であるから、
-    \[\inset{P(B,B')}{P(M\otimes A,N\otimes A')}\cong\int_{SS'}\inset{\arset{C^{op}\times C}{M\otimes A, N\otimes A'}{S,S'}}{\inset{P(B,B')}{P(S,S')}}\]が$M,A,A',B,B'$に対して自然に成り立つことを示せばよい。\\
-    同型性については$F(X,X'):=\inset{P(A,A')}{P(M\otimes X,N\otimes X')}$とすると米田の補題\[FA\cong\int_M \inset{\arset{C}{A}{X}}{FX}\]より成り立つ。また$M,N,A,A'$に対する自然性は米田の補題の$F$に対する自然性から、$B,B'$に対する自然性は米田の補題の$A$に対する自然性から成り立つ。
+    \[\inset{P(B,B')}{P(MA,NA')}\cong\int_{SS'}\inset{\arset{C^{op}\times C}{MA, NA'}{S,S'}}{\inset{P(B,B')}{P(S,S')}}\]が$M,A,A',B,B'$に対して自然に成り立つことを示せばよい。\\
+    同型性については$F(X,X'):=\inset{P(A,A')}{P(MX,NX')}$とすると米田の補題\[FA\cong\int_M \inset{\arset{C}{A}{X}}{FX}\]より成り立つ。また$M,N,A,A'$に対する自然性は米田の補題の$F$に対する自然性から、$B,B'$に対する自然性は米田の補題の$A$に対する自然性から成り立つ。
   \end{proof}
-  またこの時の同型射を\[\mor{\phi}{\int_{AA'M}\inset{P(A,A')}{P(M\otimes A,M\otimes A')}}{\int_{AA'SS'M}\inset{\arset{C^{op}\times C}{M\otimes A, M\otimes A'}{S,S'}}{\inset{P(A,A')}{P(S,S')}}}\]\[\mor{\phi^{-1}}{\int_{AA'SS'M}\inset{\arset{C^{op}\times C}{M\otimes A, M\otimes A'}{S,S'}}{\inset{P(A,A')}{P(S,S')}}}{\int_{AA'M}\inset{P(A,A')}{P(M\otimes A,M\otimes A')}}\]とし、それぞれ\[\phi(\zeta) = \lambda\tuple{l,r}.P(l,r)\circ \zeta\]
-  \[\phi^{-1}(F) = F(id,id)\]となる。
-  \begin{lemma}\label{lemma-tamb-is-functor}
-    ある丹原加群$(P,\zeta)$に対して、$\phi(\zeta)$はある関手$\functor{F}{Optic}{Set}$の射関数である。
-  \end{lemma}
-  \begin{proof}
-    以降の証明では一部の添え字とモノイダル積の記号を省略する。
-    仮定より\[\zeta_N\circ\zeta_M = P(a^{-1},a)\circ\zeta_{N\otimes M}\]\[P(\lambda^{-1},\lambda)\circ\zeta_I = id\]であり、それによって以下の図式が可換になることを示せばよい。
-    \begin{center}
-
-      \begin{tikzpicture}[auto]
-
-        \node (ct) at (0, 0) {\scriptsize
-        $\arset{(C^{op}\times C)}{NS,NS'}{T,T'}\times\arset{(C^{op}\times C)}{MA,MA'}{S,S'}$};
-
-        \node (pt) at (8, 0) {\scriptsize$\inset{P(S,S')}{P(T,T')}\times\inset{P(A,A')}{P(S,S')}$};
-
-        \node (c) at (0, -2) {\scriptsize
-        $\arset{(C^{op}\times C)}{(NM)A,(NM)A'}{T,T'}$};
-        \node (p) at (8, -2) {\scriptsize$\inset{P(A,A')}{P(T,T')}$};
-        \draw[->] (ct) to node{$\phi(\zeta_N)\times \phi(\zeta_M)$}(pt);
-        \draw[->] (c) to node[swap]{$\phi(\zeta_{NM})$}(p);
-        \draw[->] (ct) to node[swap]{$\circ_{\cat{Optic}}$}(c);
-        \draw[->] (pt) to node[swap]{$\circ$}(p);
-
-      \end{tikzpicture}
-    \end{center}
-    \begin{center}
-
-      \begin{tikzpicture}[auto]
-
-        \node (ca) at (0, 0) {$\arset{(C^{op}\times C)}{MA,MA'}{A,A'}$};
-        \node (a) at (5, 0) {$\inset{P(A,A')}{P(A,A')}$};
-        \node (1) at (5, -2) {$1$};
-        \draw[->] (ca) to node{$\phi(\zeta_M)$}(a);
-        \draw[->] (1) to node[swap]{$j_{P(A,A)}$}(a);
-        \draw[->] (1) to node{$\tuple{\lambda^{-1},\lambda}$}(ca);
-
-      \end{tikzpicture}
-    \end{center}
-
-    前者の図式の左上に任意のOpticの組 $\tuple{l',r',l,r}$を適用すると、それぞれ\[P(a^{-1}\circ Nl\circ l',r'\circ Nr\circ a)\circ\zeta_{NM}\]\[P(l',r')\circ\zeta_N\circ P(l,r)\circ \zeta_M\]となるから、これらが等しいことを示す。
-    \begin{align*}
-      P(l',r')\circ\zeta_N\circ P(l,r)\circ \zeta_M &=P(l',r')\circ P(Nl,Nr)\circ\zeta_N\circ \zeta_M&\text{($\zeta$の自然性)}\\
-      &=P(l',r')\circ P(Nl,Nr)\circ P(a^{-1},a) \circ\zeta_{NM}&\text{(仮定)}\\
-      &=P(a^{-1}\circ Nl\circ l',\ r'\circ Nr\circ a)\circ\zeta_{NM}\\
-    \end{align*}
-    同様に後者の図式から$P(\lambda^{-1},\lambda)\circ\zeta_M$を示せばよいが、これはそのまま$1$の元を適用すれば示せる。
-  \end{proof}
-  \begin{lemma}
-    あるProfunctor$\profunctor{P}{C}{C}$に対して$F(A,B)=P(A,B)$となるような任意の関手$\functor{F}{Optic}{Set}$が存在するとする。
-    すると$F$の射関数$F$に対して、$(P,\phi^{-1}(F))$が丹原加群となる。
-  \end{lemma}
-  \begin{proof}
-    仮定の$F$の関手性から、任意のOptic$\tuple{l,r}:\mathrm{Optic}(A,A',S,S'),\ \tuple{l',r'}:\mathrm{Optic}(S,S',T,T')$に対して、\[F_N(l',r')\circ F_M(l,r) = F_{NM}(a^{-1}\circ Nl\circ l',\ r'\circ Nr\circ a)\]
-    \[F_I(\lambda^{-1},\lambda)=id_{P(A,A)}\]であり、それによって以下の図式が可換になることを示せばよい。
-      \begin{center}
-        \begin{tikzpicture}[auto]
-          \node (P) at (0, 0) {$P(A,A')$};
-          \node (TP) at (6, 0) {$P(MA,MA')$};
-          \node (TP2) at (0, -2) {$P((NM)A,(NM)A')$};
-          \node (TTP) at (6, -2) {$P(N(NA),N(MA'))$};
-          \draw[->] (P) to node{$\phi(F_M)$}(TP);
-          \draw[->] (P) to node{$\phi(F_{NM})$}(TP2);
-          \draw[->] (TP) to node{$\phi(F_N)$}(TTP);
-          \draw[->] (TP2) to node{$P(a^{-1},a)$}(TTP);
-        \end{tikzpicture}
-      \end{center}
-      \begin{center}
-        \begin{tikzpicture}[auto]
-          \node (P) at (0, 0) {$P(A,A')$};
-          \node (TP) at (4, 0) {$P(IA,IA')$};
-          \node (P2) at (4, -2) {$P(A,A')$};
-          \draw[->] (P) to node{$\phi(F_I)$}(TP);
-          \draw[->] (TP) to node{$P(\lambda^{-1},\lambda)$}(P2);
-          \draw[->] (P) to(P2);
-        \end{tikzpicture}
-      \end{center}
-      すなわち、\[F_N(id,id)\circ F_M(id,id) = P(a,a^{-1})\circ F_{NM}(id,id)\]
-      \[P(\lambda^{-1},\lambda)\circ F_I(id,id)\]を示せばよい。
-
-      前者については、$l',r',l,r$を恒等射とすると、
-      \begin{align*}
-        F_N(id,id)\circ F_M(id,id) &=F_{NM}(a^{-1}\circ (N\otimes id)\circ id,\ id\circ (N\otimes id)\circ a) &\text{(仮定)}\\
-        &=F(a,a^{-1})
-      \end{align*}
-  \end{proof}
-
 \end{document}
